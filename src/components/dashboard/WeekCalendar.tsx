@@ -1,0 +1,47 @@
+import { useState } from 'react'
+import { getWeekDays, offsetWeek, getISOWeek } from '../../utils/dateUtils'
+import { DayCell } from './DayCell'
+
+export function WeekCalendar() {
+  const [referenceDate, setReferenceDate] = useState(new Date())
+  const days = getWeekDays(referenceDate)
+  const weekNum = getISOWeek(days[0])
+
+  return (
+    <div className="space-y-3">
+      {/* Week navigation */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setReferenceDate((d) => offsetWeek(d, -1))}
+          className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-colors"
+          aria-label="Vorherige Woche"
+        >
+          ‹
+        </button>
+        <div className="text-center">
+          <span className="text-sm font-semibold text-primary">Kalenderwoche {weekNum}</span>
+          <p className="text-xs text-muted">
+            {days[0].toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })} –{' '}
+            {days[6].toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setReferenceDate((d) => offsetWeek(d, 1))}
+          className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-colors"
+          aria-label="Nächste Woche"
+        >
+          ›
+        </button>
+      </div>
+
+      {/* Day cells */}
+      <div className="grid grid-cols-7 gap-1.5">
+        {days.map((day) => (
+          <DayCell key={day.toISOString()} date={day} />
+        ))}
+      </div>
+    </div>
+  )
+}

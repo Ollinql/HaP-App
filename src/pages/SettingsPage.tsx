@@ -1,0 +1,168 @@
+import { useState } from 'react'
+import { useApp } from '../store/AppContext'
+import { DAY_KEYS, DAY_LABELS_FULL } from '../utils/dateUtils'
+import { Button } from '../components/ui/Button'
+import { Card } from '../components/ui/Card'
+
+export function SettingsPage() {
+  const { settings, addGoal, removeGoal, addGlobalTag, removeGlobalTag, setTrainingDay } = useApp()
+
+  const [newGoal, setNewGoal] = useState('')
+  const [newTag, setNewTag] = useState('')
+
+  const handleAddGoal = () => {
+    const trimmed = newGoal.trim()
+    if (trimmed && !settings.trainingGoals.includes(trimmed)) {
+      addGoal(trimmed)
+      setNewGoal('')
+    }
+  }
+
+  const handleAddTag = () => {
+    const trimmed = newTag.trim()
+    if (trimmed && !settings.globalTags.includes(trimmed)) {
+      addGlobalTag(trimmed)
+      setNewTag('')
+    }
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
+      <div>
+        <h1 className="text-xl font-bold text-primary">Einstellungen</h1>
+        <p className="text-sm text-muted">Trainingstage, Ziele und Tags konfigurieren</p>
+      </div>
+
+      {/* Training days */}
+      <Card>
+        <h2 className="text-sm font-semibold text-primary mb-4">Trainingstage</h2>
+        <div className="space-y-3">
+          {DAY_KEYS.map((day) => {
+            const config = settings.trainingDays[day]
+            return (
+              <div key={day} className="flex items-center gap-3">
+                <label className="flex items-center gap-2 w-32 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.enabled}
+                    onChange={(e) => setTrainingDay(day, { enabled: e.target.checked })}
+                    className="w-4 h-4 rounded accent-[#4f7cf7]"
+                  />
+                  <span className="text-sm text-primary">{DAY_LABELS_FULL[day]}</span>
+                </label>
+                {config.enabled && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={config.duration}
+                      onChange={(e) => setTrainingDay(day, { duration: Number(e.target.value) })}
+                      min={15}
+                      step={15}
+                      className="w-20 bg-input border border-border rounded-lg px-2 py-1 text-sm text-primary outline-none focus:border-accent text-center"
+                    />
+                    <span className="text-xs text-muted">Min.</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </Card>
+
+      {/* Training goals */}
+      <Card>
+        <h2 className="text-sm font-semibold text-primary mb-4">Trainingsziele</h2>
+        <div className="space-y-2 mb-3">
+          {settings.trainingGoals.length === 0 && (
+            <p className="text-xs text-muted">Noch keine Ziele definiert.</p>
+          )}
+          {settings.trainingGoals.map((goal, i) => (
+            <div key={i} className="flex items-center gap-2 p-2 bg-elevated border border-border rounded-lg">
+              <span className="flex-1 text-sm text-primary">{goal}</span>
+              <button
+                onClick={() => removeGoal(goal)}
+                className="text-muted hover:text-red-400 text-sm transition-colors"
+                aria-label={`Ziel "${goal}" entfernen`}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newGoal}
+            onChange={(e) => setNewGoal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddGoal() }}
+            placeholder="Neues Ziel hinzufügen…"
+            className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-sm text-primary outline-none focus:border-accent"
+          />
+          <Button size="sm" onClick={handleAddGoal} disabled={!newGoal.trim()}>
+            Hinzufügen
+          </Button>
+        </div>
+      </Card>
+
+      {/* Global tags */}
+      <Card>
+        <h2 className="text-sm font-semibold text-primary mb-4">Globale Tags</h2>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {settings.globalTags.length === 0 && (
+            <p className="text-xs text-muted">Noch keine Tags definiert.</p>
+          )}
+          {settings.globalTags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-elevated border border-border rounded-full text-xs text-muted"
+            >
+              {tag}
+              <button
+                onClick={() => removeGlobalTag(tag)}
+                className="hover:text-red-400 transition-colors ml-0.5"
+                aria-label={`Tag "${tag}" entfernen`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newTag}
+            onChange={(e) => setNewTag(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddTag() }}
+            placeholder="Neuen Tag hinzufügen…"
+            className="flex-1 bg-input border border-border rounded-lg px-3 py-2 text-sm text-primary outline-none focus:border-accent"
+          />
+          <Button size="sm" onClick={handleAddTag} disabled={!newTag.trim()}>
+            Hinzufügen
+          </Button>
+        </div>
+      </Card>
+
+      {/* Danger zone */}
+      <Card>
+        <h2 className="text-sm font-semibold text-red-400 mb-3">Daten</h2>
+        <p className="text-xs text-muted mb-3">
+          Alle Daten werden lokal im Browser gespeichert (localStorage).
+          Ein Export/Import ist aktuell nicht verfügbar.
+        </p>
+        <button
+          onClick={() => {
+            if (confirm('Alle Daten wirklich löschen? Dies kann nicht rückgängig gemacht werden!')) {
+              ['htp_v1_seasons', 'htp_v1_sessions', 'htp_v1_exercises', 'htp_v1_settings'].forEach((k) =>
+                localStorage.removeItem(k),
+              )
+              window.location.reload()
+            }
+          }}
+          className="text-xs text-red-400 hover:text-red-300 border border-red-900 hover:border-red-700 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          Alle Daten löschen
+        </button>
+      </Card>
+    </div>
+  )
+}
