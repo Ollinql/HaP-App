@@ -1,157 +1,150 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
-import { HandballCourtSVG } from './HandballCourtSVG'
+import { useState, useRef, useEffect } from 'react'
+import { Stage, Layer, Line } from 'react-konva'
 import { ColorPalette } from './ColorPalette'
 
+type FieldType = 'half' | 'full'
+
 interface DrawingCanvasProps {
-  drawingData?: string // existing base64 PNG to preload
+  drawingData?: string
   onSave?: (data: string) => void
   readOnly?: boolean
 }
 
-export function DrawingCanvas({ drawingData, onSave, readOnly = false }: DrawingCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const isDrawing = useRef(false)
-  const lastPos = useRef<{ x: number; y: number } | null>(null)
-
+export function DrawingCanvas({ onSave, readOnly = false }: DrawingCanvasProps) {
+  const [fieldType, setFieldType] = useState<FieldType>('half')
   const [activeColor, setActiveColor] = useState('#ffffff')
   const [isEraser, setIsEraser] = useState(false)
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 })
 
-  const getCtx = () => canvasRef.current?.getContext('2d') ?? null
+  const containerRef = useRef<HTMLDivElement>(null)
+  const stageRef = useRef<any>(null)
 
-  // Load existing drawing on mount
+  type DrawnLine = { points: number[]; color: string; eraser: boolean; width: number }
+
+  const isDrawing = useRef(false)
+  const [lines, setLines] = useState<DrawnLine[]>([])
+  const linesRef = useRef<DrawnLine[]>([])
+
+  const syncLines = (next: DrawnLine[]) => {
+    linesRef.current = next
+    setLines(next)
+  }
+
+  // Observe container size, matching the background image dimensions
   useEffect(() => {
-    if (!drawingData) return
-    const ctx = getCtx()
-    if (!ctx) return
-    const img = new Image()
-    img.onload = () => ctx.drawImage(img, 0, 0, canvasRef.current!.width, canvasRef.current!.height)
-    img.src = drawingData
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Keep canvas pixel dimensions in sync with DOM size
-  useEffect(() => {
-    const wrapper = wrapperRef.current
-    if (!wrapper) return
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (!entry) return
-      const { width, height } = entry.contentRect
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      // Save current drawing
-      let imageData: ImageData | null = null
-      if (canvas.width > 0 && canvas.height > 0) {
-        try {
-          imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        } catch {
-          // ignore
-        }
-      }
-
-      canvas.width = Math.round(width)
-      canvas.height = Math.round(height)
-
-      // Restore drawing
-      if (imageData) {
-        ctx.putImageData(imageData, 0, 0)
-      }
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setStageSize({ w: Math.round(el.offsetWidth), h: Math.round(el.offsetHeight) })
     })
-
-    observer.observe(wrapper)
-    return () => observer.disconnect()
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
 
-  const getCanvasPos = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current!
-    const rect = canvas.getBoundingClientRect()
-    return {
-      x: ((e.clientX - rect.left) * canvas.width) / rect.width,
-      y: ((e.clientY - rect.top) * canvas.height) / rect.height,
-    }
-  }, [])
+  // Clear drawing when switching field type
+  useEffect(() => { syncLines([]) }, [fieldType])
 
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLCanvasElement>) => {
-      if (readOnly) return
-      isDrawing.current = true
-      const pos = getCanvasPos(e)
-      lastPos.current = pos
-      const ctx = getCtx()
-      if (!ctx) return
-      ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over'
-      ctx.lineWidth = isEraser ? 20 : 3
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
-      ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : activeColor
-      ctx.beginPath()
-      ctx.moveTo(pos.x, pos.y)
-      ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    },
-    [readOnly, getCanvasPos, isEraser, activeColor],
-  )
+  const courtImage = fieldType === 'half' ? '/courts/half-court.png' : '/courts/full-court.png'
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLCanvasElement>) => {
-      if (!isDrawing.current || readOnly) return
-      const pos = getCanvasPos(e)
-      const ctx = getCtx()
-      if (!ctx) return
-      ctx.lineTo(pos.x, pos.y)
-      ctx.stroke()
-      lastPos.current = pos
-    },
-    [readOnly, getCanvasPos],
-  )
+  const handleMouseDown = (e: any) => {
+    if (readOnly) return
+    isDrawing.current = true
+    const pos = e.target.getStage().getPointerPosition()
+    syncLines([...linesRef.current, {
+      points: [pos.x, pos.y],
+      color: activeColor,
+      eraser: isEraser,
+      width: isEraser ? 20 : 3,
+    }])
+  }
 
-  const handlePointerUp = useCallback(() => {
-    isDrawing.current = false
-    lastPos.current = null
-    const ctx = getCtx()
-    if (ctx) ctx.globalCompositeOperation = 'source-over'
-  }, [])
+  const handleMouseMove = (e: any) => {
+    if (!isDrawing.current || readOnly) return
+    const pos = e.target.getStage().getPointerPosition()
+    const all = linesRef.current
+    const last = all[all.length - 1]
+    if (!last) return
+    syncLines([...all.slice(0, -1), { ...last, points: [...last.points, pos.x, pos.y] }])
+  }
+
+  const handleMouseUp = () => { isDrawing.current = false }
 
   const handleColorChange = (color: string) => {
     setActiveColor(color)
     setIsEraser(false)
   }
 
-  const handleClear = () => {
-    const canvas = canvasRef.current
-    const ctx = getCtx()
-    if (!ctx || !canvas) return
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  const handleSave = () => {
+    if (!stageRef.current || !onSave) return
+    onSave(stageRef.current.toDataURL({ mimeType: 'image/png' }))
   }
 
-  const handleSave = () => {
-    const canvas = canvasRef.current
-    if (!canvas || !onSave) return
-    onSave(canvas.toDataURL('image/png'))
-  }
+  const cursor = readOnly ? 'default' : isEraser ? 'cell' : 'crosshair'
 
   return (
     <div className="flex flex-col rounded-lg overflow-hidden border border-border">
-      {/* Canvas area */}
-      <div
-        ref={wrapperRef}
-        className="relative bg-[#1a2e1a] aspect-[3/4] w-full"
-        style={{ maxHeight: '480px' }}
-      >
-        <HandballCourtSVG />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
-          style={{ touchAction: 'none', cursor: readOnly ? 'default' : (isEraser ? 'cell' : 'crosshair') }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
+      {/* Field type selector */}
+      <div className="flex gap-2 px-3 py-2 bg-elevated border-b border-border">
+        <button
+          type="button"
+          onClick={() => setFieldType('half')}
+          className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+            fieldType === 'half'
+              ? 'bg-accent text-white'
+              : 'bg-surface text-muted hover:text-primary hover:bg-hover'
+          }`}
+        >
+          Halbfeld
+        </button>
+        <button
+          type="button"
+          onClick={() => setFieldType('full')}
+          className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+            fieldType === 'full'
+              ? 'bg-accent text-white'
+              : 'bg-surface text-muted hover:text-primary hover:bg-hover'
+          }`}
+        >
+          Ganzes Feld
+        </button>
+      </div>
+
+      {/* Canvas area: court image drives height, Konva Stage overlaid on top */}
+      <div ref={containerRef} className="relative w-full" style={{ cursor }}>
+        <img
+          src={courtImage}
+          alt=""
+          className="w-full block"
+          style={{ objectFit: 'contain' }}
         />
+        {stageSize.w > 0 && (
+          <Stage
+            ref={stageRef}
+            width={stageSize.w}
+            height={stageSize.h}
+            style={{ position: 'absolute', inset: 0 }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onTouchStart={handleMouseDown}
+            onTouchMove={handleMouseMove}
+            onTouchEnd={handleMouseUp}
+          >
+            <Layer>
+              {lines.map((line, i) => (
+                <Line
+                  key={i}
+                  points={line.points}
+                  stroke={line.eraser ? 'rgba(0,0,0,1)' : line.color}
+                  strokeWidth={line.width}
+                  lineCap="round"
+                  lineJoin="round"
+                  globalCompositeOperation={line.eraser ? 'destination-out' : 'source-over'}
+                />
+              ))}
+            </Layer>
+          </Stage>
+        )}
       </div>
 
       {/* Toolbar */}
@@ -160,8 +153,8 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
           activeColor={activeColor}
           onColorChange={handleColorChange}
           isEraser={isEraser}
-          onEraserToggle={() => setIsEraser((e) => !e)}
-          onClear={handleClear}
+          onEraserToggle={() => setIsEraser(e => !e)}
+          onClear={() => syncLines([])}
         />
       )}
 
