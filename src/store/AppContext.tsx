@@ -1,8 +1,8 @@
-import { createContext, useContext, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, ReactNode } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import type { Season, Phase, Microcycle } from '../types/season'
 import type { TrainingSession, Exercise } from '../types/session'
-import type { Settings, DayKey } from '../types/settings'
+import type { Settings, DayKey, Goal } from '../types/settings'
 import { generateId } from '../utils/idUtils'
 
 const DEFAULT_SETTINGS: Settings = {
@@ -57,8 +57,9 @@ interface AppContextValue {
 
   // Settings helpers
   updateSettings: (s: Settings) => void
-  addGoal: (goal: string) => void
-  removeGoal: (goal: string) => void
+  addGoal: (text: string, tag?: string) => void
+  removeGoal: (id: string) => void
+  toggleGoal: (id: string) => void
   addGlobalTag: (tag: string) => void
   removeGlobalTag: (tag: string) => void
   setTrainingDay: (day: DayKey, config: { enabled?: boolean; duration?: number }) => void
@@ -71,6 +72,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useLocalStorage<TrainingSession[]>('htp_v1_sessions', [])
   const [exercises, setExercises] = useLocalStorage<Exercise[]>('htp_v1_exercises', [])
   const [settings, setSettings] = useLocalStorage<Settings>('htp_v1_settings', DEFAULT_SETTINGS)
+
+  // Migrate legacy string goals to Goal objects (stable IDs via useMemo)
+  const migratedGoals = useMemo(
+    () =>
+      settings.trainingGoals.map((g) =>
+        typeof g === 'string'
+          ? ({ id: generateId(), text: g as unknown as string, completed: false } as Goal)
+          : g,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings.trainingGoals],
+  )
+  const migratedSettings: Settings = useMemo(
+    () => ({ ...settings, trainingGoals: migratedGoals }),
+    [settings, migratedGoals],
+  )
+
+  // Persist migration once if legacy strings are found
+  useEffect(() => {
+    if (settings.trainingGoals.some((g) => typeof g === 'string')) {
+      setSettings(migratedSettings)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Season helpers ──────────────────────────────────────────────────────────
 
@@ -188,14 +213,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSettings(s)
   }
 
-  function addGoal(goal: string) {
+  function addGoal(text: string, tag?: string) {
+    const goal: Goal = { id: generateId(), text, completed: false, tag }
     setSettings((prev) => ({ ...prev, trainingGoals: [...prev.trainingGoals, goal] }))
   }
 
-  function removeGoal(goal: string) {
+  function removeGoal(id: string) {
     setSettings((prev) => ({
       ...prev,
-      trainingGoals: prev.trainingGoals.filter((g) => g !== goal),
+      trainingGoals: prev.trainingGoals.filter((g) => (typeof g === 'string' ? false : g.id !== id)),
+    }))
+  }
+
+  function toggleGoal(id: string) {
+    setSettings((prev) => ({
+      ...prev,
+      trainingGoals: prev.trainingGoals.map((g) =>
+        typeof g !== 'string' && g.id === id ? { ...g, completed: !g.completed } : g,
+      ),
     }))
   }
 
@@ -226,7 +261,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         seasons,
         sessions,
         exercises,
-        settings,
+        settings: migratedSettings,
         setSeasons,
         setSessions,
         setExercises,
@@ -249,6 +284,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateSettings,
         addGoal,
         removeGoal,
+        toggleGoal,
         addGlobalTag,
         removeGlobalTag,
         setTrainingDay,

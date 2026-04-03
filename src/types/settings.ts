@@ -12,8 +12,15 @@ export interface DayConfig {
   duration: number // default session duration in minutes
 }
 
+export interface Goal {
+  id: string
+  text: string
+  completed: boolean
+  tag?: string
+}
+
 export interface Settings {
   trainingDays: Record<DayKey, DayConfig>
-  trainingGoals: string[]
+  trainingGoals: Goal[]
   globalTags: string[]
 }

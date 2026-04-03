@@ -12,7 +12,7 @@ export function SettingsPage() {
 
   const handleAddGoal = () => {
     const trimmed = newGoal.trim()
-    if (trimmed && !settings.trainingGoals.includes(trimmed)) {
+    if (trimmed && !settings.trainingGoals.some((g) => g.text === trimmed)) {
       addGoal(trimmed)
       setNewGoal('')
     }
@@ -76,13 +76,18 @@ export function SettingsPage() {
           {settings.trainingGoals.length === 0 && (
             <p className="text-xs text-muted">Noch keine Ziele definiert.</p>
           )}
-          {settings.trainingGoals.map((goal, i) => (
-            <div key={i} className="flex items-center gap-2 p-2 bg-elevated border border-border rounded-lg">
-              <span className="flex-1 text-sm text-primary">{goal}</span>
+          {settings.trainingGoals.map((goal) => (
+            <div key={goal.id} className="flex items-center gap-2 p-2 bg-elevated border border-border rounded-lg">
+              <span className="flex-1 text-sm text-primary">{goal.text}</span>
+              {goal.tag && (
+                <span className="text-xs text-muted px-1.5 py-0.5 bg-surface border border-border rounded">
+                  {goal.tag}
+                </span>
+              )}
               <button
-                onClick={() => removeGoal(goal)}
+                onClick={() => removeGoal(goal.id)}
                 className="text-muted hover:text-red-400 text-sm transition-colors"
-                aria-label={`Ziel "${goal}" entfernen`}
+                aria-label={`Ziel "${goal.text}" entfernen`}
               >
                 ×
               </button>
