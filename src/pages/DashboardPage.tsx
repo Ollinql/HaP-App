@@ -1,8 +1,16 @@
+import { useState } from 'react'
 import { WeekCalendar } from '../components/dashboard/WeekCalendar'
 import { MicrocycleBanner } from '../components/dashboard/MicrocycleBanner'
 import { GoalsList } from '../components/dashboard/GoalsList'
+import { DayDetailPanel } from '../components/dashboard/DayDetailPanel'
 
 export function DashboardPage() {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
+  const handleDaySelect = (dateStr: string) => {
+    setSelectedDate((prev) => (prev === dateStr ? null : dateStr))
+  }
+
   return (
     <div className="relative min-h-full">
       {/* Background image — very low opacity so content stays readable */}
@@ -26,7 +34,10 @@ export function DashboardPage() {
         </div>
 
         <MicrocycleBanner />
-        <WeekCalendar />
+        <WeekCalendar onDaySelect={handleDaySelect} selectedDate={selectedDate} />
+        {selectedDate && (
+          <DayDetailPanel date={selectedDate} onClose={() => setSelectedDate(null)} />
+        )}
         <GoalsList />
       </div>
     </div>

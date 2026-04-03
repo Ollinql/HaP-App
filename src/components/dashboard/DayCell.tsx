@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../store/AppContext'
 import type { TrainingSession } from '../../types'
 import { toISODate, getDayKey } from '../../utils/dateUtils'
@@ -6,10 +5,11 @@ import { getIntensityColor } from '../../utils/colorUtils'
 
 interface DayCellProps {
   date: Date
+  onSelect: (dateStr: string) => void
+  isSelected?: boolean
 }
 
-export function DayCell({ date }: DayCellProps) {
-  const navigate = useNavigate()
+export function DayCell({ date, onSelect, isSelected }: DayCellProps) {
   const { sessions, settings } = useApp()
 
   const dateStr = toISODate(date)
@@ -23,11 +23,7 @@ export function DayCell({ date }: DayCellProps) {
   const isPast = dateStr < todayStr
 
   const handleClick = () => {
-    if (session) {
-      navigate(`/sessions/${session.id}`)
-    } else {
-      navigate(`/sessions/new?date=${dateStr}`)
-    }
+    onSelect(dateStr)
   }
 
   const dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
@@ -41,6 +37,8 @@ export function DayCell({ date }: DayCellProps) {
         'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-left w-full',
         isToday
           ? 'border-accent bg-accent/10 ring-1 ring-accent'
+          : isSelected
+          ? 'border-accent/70 bg-elevated ring-1 ring-accent/50'
           : 'border-border hover:border-accent/50 hover:bg-elevated',
         !isTrainingDay && !session ? 'opacity-50' : '',
       ].join(' ')}

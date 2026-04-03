@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { getWeekDays, offsetWeek, getISOWeek } from '../../utils/dateUtils'
 import { DayCell } from './DayCell'
 
-export function WeekCalendar() {
+interface WeekCalendarProps {
+  onDaySelect: (dateStr: string) => void
+  selectedDate?: string | null
+}
+
+export function WeekCalendar({ onDaySelect, selectedDate }: WeekCalendarProps) {
   const [referenceDate, setReferenceDate] = useState(new Date())
   const days = getWeekDays(referenceDate)
   const weekNum = getISOWeek(days[0])
@@ -38,9 +43,17 @@ export function WeekCalendar() {
 
       {/* Day cells */}
       <div className="grid grid-cols-7 gap-1.5">
-        {days.map((day) => (
-          <DayCell key={day.toISOString()} date={day} />
-        ))}
+        {days.map((day) => {
+          const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+          return (
+            <DayCell
+              key={day.toISOString()}
+              date={day}
+              onSelect={onDaySelect}
+              isSelected={selectedDate === iso}
+            />
+          )
+        })}
       </div>
     </div>
   )
