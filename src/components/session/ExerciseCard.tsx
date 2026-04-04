@@ -28,7 +28,7 @@ export function ExerciseCard({ exercise, onUpdate, onRemove }: ExerciseCardProps
         title="Zeichnung öffnen"
       >
         {exercise.drawingData ? (
-          <img src={exercise.drawingData} alt="" className="w-full h-full object-cover" />
+          <img src={exercise.drawingData} alt="" className="w-full h-full object-contain" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted text-xs">
             ✏️
@@ -57,7 +57,7 @@ export function ExerciseCard({ exercise, onUpdate, onRemove }: ExerciseCardProps
         <button
           type="button"
           onClick={() => setCanvasOpen(true)}
-          className="text-xs text-muted hover:text-accent transition-colors"
+          className="text-xs text-primary hover:text-accent transition-colors"
           title="Zeichnen"
         >
           ✏

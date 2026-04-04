@@ -9,6 +9,7 @@ export interface Exercise {
   drawingElements?: string     // JSON.stringify(CanvasElement[]) — für Weiterbearbeitung
   section: SectionKey
   createdAt: string // ISO date string
+  intensityFeedback?: IntensityLevel | null // einmalige Bewertung nach dem Training
 }
 
 export interface TrainingSession {

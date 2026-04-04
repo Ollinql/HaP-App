@@ -62,16 +62,26 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
   const [editingText, setEditingText] = useState<{
     id: string; x: number; y: number; text: string; color: string
   } | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [zoomState, setZoomState] = useState({ scale: 1, x: 0, y: 0 })
 
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<any>(null)
   const transformerRef = useRef<any>(null)
   const isDrawing = useRef(false)
   const elementsRef = useRef<CanvasElement[]>([])
+  const zoomRef = useRef({ scale: 1, x: 0, y: 0 })
+  const lastDist = useRef(0)
+  const isPinching = useRef(false)
 
   const syncElements = (next: CanvasElement[]) => {
     elementsRef.current = next
     setElements(next)
+  }
+
+  const applyZoom = (z: { scale: number; x: number; y: number }) => {
+    zoomRef.current = z
+    setZoomState(z)
   }
 
   // Elemente aus drawingElements laden (JSON-Array für Weiterbearbeitung)
@@ -92,11 +102,12 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
     return () => ro.disconnect()
   }, [])
 
-  // Feldtyp-Wechsel leert Canvas
+  // Feldtyp-Wechsel leert Canvas und resettet Zoom
   useEffect(() => {
     syncElements([])
     detachTransformer()
     setSelectedId(null)
+    applyZoom({ scale: 1, x: 0, y: 0 })
   }, [fieldType]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Draw-Tool deselektiert Transformer
@@ -107,9 +118,9 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
     }
   }, [activeTool]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Touch-Scroll verhindern (Apple Pencil Fix)
+  // Touch-Scroll nur verhindern wenn editMode aktiv
   useEffect(() => {
-    if (readOnly) return
+    if (readOnly || !editMode) return
     const el = containerRef.current
     if (!el) return
     const prevent = (e: TouchEvent) => e.preventDefault()
@@ -119,7 +130,7 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
       el.removeEventListener('touchmove', prevent)
       el.removeEventListener('touchstart', prevent)
     }
-  }, [readOnly])
+  }, [readOnly, editMode])
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, '')
   const courtImage = fieldType === 'half' ? `${base}/courts/half-court.png` : `${base}/courts/full-court.png`
@@ -140,10 +151,18 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
     }
   }
 
-  const getPos = (e: any) => e.target.getStage().getPointerPosition() as { x: number; y: number } | null
+  // getPos berücksichtigt Zoom-Offset und Scale
+  const getPos = (e: any) => {
+    const stage = e.target.getStage()
+    const pos = stage.getPointerPosition()
+    if (!pos) return null
+    const { scale, x, y } = zoomRef.current
+    return { x: (pos.x - x) / scale, y: (pos.y - y) / scale }
+  }
 
   const handleMouseDown = (e: any) => {
     if (readOnly || !DRAW_TOOLS.includes(activeTool)) return
+    if (!editMode) return
     const pos = getPos(e)
     if (!pos) return
     isDrawing.current = true
@@ -176,12 +195,53 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
 
   const handleMouseUp = () => { isDrawing.current = false }
 
+  // Touch-Handler mit Pinch-Zoom-Unterstützung
+  const handleTouchStart = (e: any) => {
+    if (!editMode) return
+    const t = (e.evt as TouchEvent).touches
+    if (t.length === 2) {
+      isPinching.current = true
+      isDrawing.current = false
+      lastDist.current = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY)
+    } else if (t.length === 1 && !isPinching.current) {
+      handleMouseDown(e)
+    }
+  }
+
+  const handleTouchMove = (e: any) => {
+    if (!editMode) return
+    const t = (e.evt as TouchEvent).touches
+    if (isPinching.current && t.length === 2) {
+      const newDist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY)
+      const ratio = newDist / lastDist.current
+      const rect = stageRef.current.container().getBoundingClientRect()
+      const cx = (t[0].clientX + t[1].clientX) / 2 - rect.left
+      const cy = (t[0].clientY + t[1].clientY) / 2 - rect.top
+      const { scale: old, x: ox, y: oy } = zoomRef.current
+      const newScale = Math.max(0.5, Math.min(6, old * ratio))
+      applyZoom({
+        scale: newScale,
+        x: cx - (cx - ox) * (newScale / old),
+        y: cy - (cy - oy) * (newScale / old),
+      })
+      lastDist.current = newDist
+    } else if (!isPinching.current) {
+      handleMouseMove(e)
+    }
+  }
+
+  const handleTouchEnd = (e: any) => {
+    if ((e.evt as TouchEvent).touches.length < 2) isPinching.current = false
+    handleMouseUp()
+  }
+
   const handleStageClick = (e: any) => {
     if (e.target === stageRef.current) {
       setSelectedId(null)
       detachTransformer()
     }
     if (readOnly || !SHAPE_TOOLS.includes(activeTool)) return
+    if (!editMode) return
     if (e.target !== stageRef.current) return
     const pos = getPos(e)
     if (!pos) return
@@ -253,7 +313,7 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
     setEditingText(null)
   }
 
-  const isDraggable = !DRAW_TOOLS.includes(activeTool) && activeTool !== 'radierer'
+  const isDraggable = !DRAW_TOOLS.includes(activeTool) && activeTool !== 'radierer' && editMode
 
   const sharedProps = (id: string) => ({
     draggable: isDraggable,
@@ -375,6 +435,7 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
   )
 
   const cursor = readOnly ? 'default'
+    : !editMode ? 'default'
     : activeTool === 'radierer' ? 'not-allowed'
     : DRAW_TOOLS.includes(activeTool) ? 'crosshair'
     : 'copy'
@@ -392,7 +453,7 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
   }
 
   return (
-    <div className="flex flex-col rounded-lg overflow-hidden border border-border h-full">
+    <div className="flex flex-col rounded-lg overflow-hidden border border-border">
       {/* Field type selector */}
       <div className="flex gap-2 px-3 py-2 bg-elevated border-b border-border shrink-0">
         {(['half', 'full'] as FieldType[]).map(ft => (
@@ -409,98 +470,117 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
             {ft === 'half' ? 'Halbfeld' : 'Ganzes Feld'}
           </button>
         ))}
+
+        {/* Edit mode toggle */}
+        <button
+          type="button"
+          onClick={() => setEditMode(m => !m)}
+          className={`ml-auto px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+            editMode
+              ? 'bg-accent text-white'
+              : 'bg-surface text-muted hover:text-primary hover:bg-hover'
+          }`}
+        >
+          {editMode ? '✏ Zeichnen aktiv' : '✏ Zeichnen'}
+        </button>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 py-1 bg-elevated border-b border-border overflow-x-auto min-h-[52px] shrink-0">
-        {/* Shapes */}
-        {toolBtn('kleiner-kegel',
-          <span style={{ display:'inline-block', width:0, height:0, borderLeft:'7px solid transparent', borderRight:'7px solid transparent', borderBottom:'12px solid #f97316' }} />,
-          'Kleiner Kegel'
-        )}
-        {toolBtn('grosser-kegel',
-          <span style={{ display:'inline-block', width:0, height:0, borderLeft:'11px solid transparent', borderRight:'11px solid transparent', borderBottom:'20px solid #f97316' }} />,
-          'Großer Kegel'
-        )}
-        {toolBtn('dreieck',
-          <span style={{ display:'inline-block', width:0, height:0, borderLeft:'8px solid transparent', borderRight:'8px solid transparent', borderBottom:`14px solid ${activeColor}` }} />,
-          'Dreieck (Spieler)'
-        )}
-        {toolBtn('kreis',
-          <span style={{ display:'inline-block', width:14, height:14, borderRadius:'50%', background: activeColor }} />,
-          'Kreis'
-        )}
-        {toolBtn('text', <span className="font-bold text-sm">T</span>, 'Text')}
+      {/* Toolbar — nur sichtbar wenn editMode */}
+      {editMode && (
+        <div className="flex items-center gap-1 px-2 py-1 bg-elevated border-b border-border overflow-x-auto min-h-[52px] shrink-0">
+          {/* Shapes */}
+          {toolBtn('kleiner-kegel',
+            <span style={{ display:'inline-block', width:0, height:0, borderLeft:'7px solid transparent', borderRight:'7px solid transparent', borderBottom:'12px solid #f97316' }} />,
+            'Kleiner Kegel'
+          )}
+          {toolBtn('grosser-kegel',
+            <span style={{ display:'inline-block', width:0, height:0, borderLeft:'11px solid transparent', borderRight:'11px solid transparent', borderBottom:'20px solid #f97316' }} />,
+            'Großer Kegel'
+          )}
+          {toolBtn('dreieck',
+            <span style={{ display:'inline-block', width:0, height:0, borderLeft:'8px solid transparent', borderRight:'8px solid transparent', borderBottom:`14px solid ${activeColor}` }} />,
+            'Dreieck (Spieler)'
+          )}
+          {toolBtn('kreis',
+            <span style={{ display:'inline-block', width:14, height:14, borderRadius:'50%', background: activeColor }} />,
+            'Kreis'
+          )}
+          {toolBtn('text', <span className="font-bold text-sm">T</span>, 'Text')}
 
-        <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
+          <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
 
-        {/* Draw tools */}
-        {toolBtn('stift', <span>✏️</span>, 'Stift')}
-        {toolBtn('pfeil', <span className="text-base font-bold">→</span>, 'Pfeil')}
-        {toolBtn('gestrichelter-pfeil', <span className="text-base">⇢</span>, 'Gestrichelter Pfeil')}
+          {/* Draw tools */}
+          {toolBtn('stift', <span>✏️</span>, 'Stift')}
+          {toolBtn('pfeil', <span className="text-base font-bold">→</span>, 'Pfeil')}
+          {toolBtn('gestrichelter-pfeil', <span className="text-base">⇢</span>, 'Gestrichelter Pfeil')}
 
-        <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
+          <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
 
-        {/* Radierer */}
-        {toolBtn('radierer', <span>⌫</span>, 'Radierer')}
+          {/* Radierer */}
+          {toolBtn('radierer', <span>⌫</span>, 'Radierer')}
 
-        {/* Undo */}
-        <button
-          type="button"
-          title="Rückgängig"
-          onClick={() => syncElements(elementsRef.current.slice(0, -1))}
-          className="flex-shrink-0 min-w-[44px] h-[44px] px-2 flex items-center justify-center text-xs font-medium rounded transition-colors bg-surface text-muted hover:text-primary hover:bg-hover"
-        >
-          ↩
-        </button>
-
-        {/* Leer */}
-        <button
-          type="button"
-          title="Alles löschen"
-          onClick={() => syncElements([])}
-          className="flex-shrink-0 min-w-[44px] h-[44px] px-2 flex items-center justify-center text-xs font-medium rounded transition-colors bg-surface text-muted hover:text-red-400 hover:bg-hover"
-        >
-          ✕ Leer
-        </button>
-
-        <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
-
-        {/* Color palette */}
-        {COLORS.map(c => (
+          {/* Undo */}
           <button
-            key={c.value}
             type="button"
-            title={c.label}
-            onClick={() => setActiveColor(c.value)}
-            style={{ backgroundColor: c.value }}
-            className={`flex-shrink-0 w-[30px] h-[30px] rounded-full transition-transform ${
-              activeColor === c.value
-                ? 'scale-110 ring-2 ring-white ring-offset-1 ring-offset-elevated'
-                : 'hover:scale-105'
-            }`}
-          />
-        ))}
-      </div>
+            title="Rückgängig"
+            onClick={() => syncElements(elementsRef.current.slice(0, -1))}
+            className="flex-shrink-0 min-w-[44px] h-[44px] px-2 flex items-center justify-center text-xs font-medium rounded transition-colors bg-surface text-muted hover:text-primary hover:bg-hover"
+          >
+            ↩
+          </button>
 
-      {/* Canvas area — füllt verbleibende Höhe */}
+          {/* Leer */}
+          <button
+            type="button"
+            title="Alles löschen"
+            onClick={() => syncElements([])}
+            className="flex-shrink-0 min-w-[44px] h-[44px] px-2 flex items-center justify-center text-xs font-medium rounded transition-colors bg-surface text-muted hover:text-red-400 hover:bg-hover"
+          >
+            ✕ Leer
+          </button>
+
+          <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
+
+          {/* Color palette */}
+          {COLORS.map(c => (
+            <button
+              key={c.value}
+              type="button"
+              title={c.label}
+              onClick={() => setActiveColor(c.value)}
+              style={{ backgroundColor: c.value }}
+              className={`flex-shrink-0 w-[30px] h-[30px] rounded-full transition-transform ${
+                activeColor === c.value
+                  ? 'scale-110 ring-2 ring-white ring-offset-1 ring-offset-elevated'
+                  : 'hover:scale-105'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Canvas area — festes Seitenverhältnis, kein flex-stretch */}
       <div
         ref={containerRef}
-        className={`relative w-full flex-1 min-h-0 ${fieldType === 'half' ? 'aspect-[3/4]' : 'aspect-[2/3]'}`}
-        style={{ cursor, touchAction: 'none' }}
+        className={`relative w-full overflow-hidden ${fieldType === 'half' ? 'aspect-[3/4]' : 'aspect-[2/3]'}`}
+        style={{ cursor, touchAction: editMode ? 'none' : 'auto', maxHeight: '70vh' }}
       >
         {stageSize.w > 0 && (
           <Stage
             ref={stageRef}
             width={stageSize.w}
             height={stageSize.h}
+            x={zoomState.x}
+            y={zoomState.y}
+            scaleX={zoomState.scale}
+            scaleY={zoomState.scale}
             style={{ position: 'absolute', inset: 0 }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            onTouchStart={handleMouseDown}
-            onTouchMove={handleMouseMove}
-            onTouchEnd={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
             onClick={handleStageClick}
             onTap={handleStageClick}
           >
@@ -554,6 +634,18 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
             }}
           />
         )}
+
+        {/* Overlay-Hinweis wenn editMode inaktiv */}
+        {!editMode && (
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-black/10 cursor-pointer"
+            onClick={() => setEditMode(true)}
+          >
+            <span className="bg-surface/90 text-primary text-sm font-medium px-3 py-1.5 rounded-full border border-border shadow">
+              Tippen zum Zeichnen
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Save button */}
@@ -563,7 +655,15 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
             type="button"
             onClick={() => {
               if (!stageRef.current) return
-              const pngDataUrl = stageRef.current.toDataURL({ pixelRatio: 1 })
+              const stage = stageRef.current
+              // Zoom temporär zurücksetzen für sauberes PNG
+              stage.scale({ x: 1, y: 1 })
+              stage.position({ x: 0, y: 0 })
+              const pngDataUrl = stage.toDataURL({ pixelRatio: 1 })
+              // Zoom wiederherstellen
+              const z = zoomRef.current
+              stage.scale({ x: z.scale, y: z.scale })
+              stage.position({ x: z.x, y: z.y })
               const elementsJson = JSON.stringify(elementsRef.current)
               onSave(pngDataUrl, elementsJson)
             }}

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../store/AppContext'
 import { fromISODate, formatDateLong, getMondayOfWeek, toISODate, getISOWeek } from '../../utils/dateUtils'
 import type { Phase, Microcycle } from '../../types'
+import { TrainingRunModal } from './TrainingRunModal'
 
 interface DayDetailPanelProps {
   date: string
@@ -32,6 +34,7 @@ const SECTION_LABELS: Record<string, string> = {
 export function DayDetailPanel({ date, onClose }: DayDetailPanelProps) {
   const navigate = useNavigate()
   const { sessions, seasons } = useApp()
+  const [trainingRunOpen, setTrainingRunOpen] = useState(false)
 
   const session = sessions.find((s) => s.date === date)
 
@@ -144,15 +147,28 @@ export function DayDetailPanel({ date, onClose }: DayDetailPanelProps) {
             })}
           </div>
 
-          {/* Edit button */}
-          <button
-            type="button"
-            onClick={() => navigate(`/sessions/${session.id}`)}
-            className="w-full py-2 px-4 rounded-lg border border-accent text-accent text-sm font-medium hover:bg-accent/10 transition-colors"
-          >
-            Bearbeiten
-          </button>
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setTrainingRunOpen(true)}
+              className="flex-1 py-2 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
+            >
+              Training starten
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/sessions/${session.id}`)}
+              className="py-2 px-4 rounded-lg border border-accent text-accent text-sm font-medium hover:bg-accent/10 transition-colors"
+            >
+              Bearbeiten
+            </button>
+          </div>
         </div>
+      )}
+
+      {session && trainingRunOpen && (
+        <TrainingRunModal session={session} onClose={() => setTrainingRunOpen(false)} />
       )}
     </div>
   )

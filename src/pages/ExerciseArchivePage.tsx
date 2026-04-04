@@ -131,7 +131,7 @@ export function ExerciseArchivePage() {
                 onClick={() => setPreviewEx(ex)}
               >
                 {ex.drawingData ? (
-                  <img src={ex.drawingData} alt="" className="w-full h-full object-cover" />
+                  <img src={ex.drawingData} alt="" className="w-full h-full object-contain" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted text-sm">
                     Keine Zeichnung
@@ -153,7 +153,7 @@ export function ExerciseArchivePage() {
                 <div className="flex gap-1.5 mt-2">
                   <button
                     onClick={() => { setEditEx({ ...ex }); setCreationStep('metadata'); setNewExOpen(false) }}
-                    className="text-xs text-muted hover:text-accent transition-colors"
+                    className="text-xs text-primary hover:text-accent transition-colors"
                   >
                     ✎ Bearbeiten
                   </button>
