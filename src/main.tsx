@@ -25,7 +25,7 @@ const router = createBrowserRouter([
       { path: 'settings', element: <SettingsPage /> },
     ],
   },
-])
+], { basename: '/HaP-App' })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
