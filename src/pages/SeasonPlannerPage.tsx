@@ -9,6 +9,7 @@ import { SeasonForm } from '../components/season/SeasonForm'
 import { PhaseForm } from '../components/season/PhaseForm'
 import { MicrocycleForm } from '../components/season/MicrocycleForm'
 import { PHASE_COLORS } from '../utils/colorUtils'
+import { PageBackground } from '../components/ui/PageBackground'
 
 export function SeasonPlannerPage() {
   const { seasons, addSeason, updateSeason, deleteSeason, addPhase, updatePhase, deletePhase, addMicrocycle, updateMicrocycle, deleteMicrocycle } = useApp()
@@ -32,7 +33,9 @@ export function SeasonPlannerPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-5xl mx-auto">
+    <div className="relative min-h-full">
+      <PageBackground />
+      <div className="relative z-10 p-4 md:p-6 space-y-4 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-primary">Saisonplanung</h1>
@@ -243,6 +246,7 @@ export function SeasonPlannerPage() {
         title="Löschen bestätigen"
         message={`„${deleteDialog.label}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
       />
+      </div>
     </div>
   )
 }

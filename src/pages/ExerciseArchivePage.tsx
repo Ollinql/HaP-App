@@ -8,6 +8,7 @@ import { Modal } from '../components/ui/Modal'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { DrawingCanvas } from '../components/canvas/DrawingCanvas'
 import { TagInput } from '../components/ui/TagInput'
+import { PageBackground } from '../components/ui/PageBackground'
 
 export function ExerciseArchivePage() {
   const { exercises, settings, addExercise, updateExercise, deleteExercise } = useApp()
@@ -59,7 +60,9 @@ export function ExerciseArchivePage() {
   ]
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-5xl mx-auto">
+    <div className="relative min-h-full">
+      <PageBackground />
+      <div className="relative z-10 p-4 md:p-6 space-y-4 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-primary">Übungsarchiv</h1>
@@ -239,6 +242,7 @@ export function ExerciseArchivePage() {
         title="Übung löschen"
         message="Diese Übung wirklich aus dem Archiv entfernen?"
       />
+      </div>
     </div>
   )
 }
