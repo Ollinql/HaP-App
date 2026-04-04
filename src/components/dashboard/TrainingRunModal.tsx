@@ -92,25 +92,25 @@ export function TrainingRunModal({ session, onClose }: TrainingRunModalProps) {
                   <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
                     {SECTION_LABELS[sectionKey]}
                   </p>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {exercises.map((ex) => (
                       <div
                         key={ex.id}
-                        className="flex items-start gap-3 p-3 bg-surface border border-border rounded-lg"
+                        className="bg-surface border border-border rounded-lg overflow-hidden"
                       >
-                        {/* Thumbnail */}
-                        <div className="shrink-0 w-14 h-14 rounded overflow-hidden bg-[#1a2e1a] border border-border">
+                        {/* Großes Vorschaubild */}
+                        <div className="w-full aspect-[4/3] bg-[#1a2e1a]">
                           {ex.drawingData ? (
                             <img src={ex.drawingData} alt="" className="w-full h-full object-contain" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-muted text-sm">
+                            <div className="w-full h-full flex items-center justify-center text-muted text-2xl">
                               ✏️
                             </div>
                           )}
                         </div>
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-primary">{ex.title || '—'}</p>
+                        {/* Titel + Tags */}
+                        <div className="px-3 py-2">
+                          <p className="text-sm font-semibold text-primary">{ex.title || '—'}</p>
                           {ex.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {ex.tags.map((tag) => (

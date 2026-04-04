@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Stage, Layer, Line, Arrow, RegularPolygon, Circle, Text as KonvaText, Transformer, Image as KonvaImage } from 'react-konva'
 
 type FieldType = 'half' | 'full'
@@ -51,12 +51,39 @@ const DRAW_TOOLS: ToolType[] = ['stift', 'pfeil', 'gestrichelter-pfeil']
 const UNIFORM_SCALE_TYPES = ['kleiner-kegel', 'grosser-kegel', 'kreis']
 const TRANSFORMABLE_TYPES = ['kleiner-kegel', 'grosser-kegel', 'dreieck', 'kreis', 'text']
 
+// Feste logische Canvas-Größe – Stage bleibt immer genau so groß,
+// der Container wird per CSS transform skaliert.
+const COURT_WIDTH = 800
+const COURT_HEIGHT = 533   // ≈ 3:2, passt gut für Halb- und Ganzfeld
+
+function useCourtScale(containerRef: React.RefObject<HTMLDivElement | null>) {
+  const [scale, setScale] = useState(1)
+
+  const update = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    const scaleX = el.offsetWidth / COURT_WIDTH
+    const scaleY = el.offsetHeight / COURT_HEIGHT
+    setScale(Math.min(scaleX, scaleY))
+  }, [containerRef])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [containerRef, update])
+
+  return scale
+}
+
 export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly = false }: DrawingCanvasProps) {
   const [fieldType, setFieldType] = useState<FieldType>('half')
   const [activeTool, setActiveTool] = useState<ToolType>('stift')
   const [activeColor, setActiveColor] = useState('#000000')
   const [elements, setElements] = useState<CanvasElement[]>([])
-  const [stageSize, setStageSize] = useState({ w: 0, h: 0 })
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [courtImg, setCourtImg] = useState<HTMLImageElement | null>(null)
   const [editingText, setEditingText] = useState<{
@@ -64,6 +91,10 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
   } | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [zoomState, setZoomState] = useState({ scale: 1, x: 0, y: 0 })
+  const [zoomLocked, setZoomLocked] = useState(() => {
+    try { return localStorage.getItem('dc_zoomLocked') === 'true' } catch { return false }
+  })
+  const [zoomLockFlash, setZoomLockFlash] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<any>(null)
@@ -73,6 +104,10 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
   const zoomRef = useRef({ scale: 1, x: 0, y: 0 })
   const lastDist = useRef(0)
   const isPinching = useRef(false)
+  const zoomLockedRef = useRef(zoomLocked)
+  const flashTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const scale = useCourtScale(containerRef)
 
   const syncElements = (next: CanvasElement[]) => {
     elementsRef.current = next
@@ -84,23 +119,24 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
     setZoomState(z)
   }
 
+  // Sync zoomLocked ref + localStorage
+  useEffect(() => {
+    zoomLockedRef.current = zoomLocked
+    try { localStorage.setItem('dc_zoomLocked', String(zoomLocked)) } catch { /* ignore */ }
+  }, [zoomLocked])
+
+  const triggerFlash = () => {
+    if (flashTimeout.current) clearTimeout(flashTimeout.current)
+    setZoomLockFlash(true)
+    flashTimeout.current = setTimeout(() => setZoomLockFlash(false), 500)
+  }
+
   // Elemente aus drawingElements laden (JSON-Array für Weiterbearbeitung)
   useEffect(() => {
     if (drawingElements) {
       try { syncElements(JSON.parse(drawingElements)) } catch { /* ignore */ }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Container-Größe beobachten
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const ro = new ResizeObserver(() => {
-      setStageSize({ w: Math.round(el.offsetWidth), h: Math.round(el.offsetHeight) })
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   // Feldtyp-Wechsel leert Canvas und resettet Zoom
   useEffect(() => {
@@ -135,13 +171,13 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
   const base = import.meta.env.BASE_URL.replace(/\/$/, '')
   const courtImage = fieldType === 'half' ? `${base}/courts/half-court.png` : `${base}/courts/full-court.png`
 
-  // Hintergrundbild als Konva-Node laden (wird in toDataURL() erfasst)
+  // Hintergrundbild laden — stageSize wird aus naturalWidth/Height berechnet
   useEffect(() => {
+    setCourtImg(null)
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
     img.src = courtImage
     img.onload = () => setCourtImg(img)
-    setCourtImg(null) // Reset während Laden
   }, [courtImage])
 
   const detachTransformer = () => {
@@ -212,6 +248,11 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
     if (!editMode) return
     const t = (e.evt as TouchEvent).touches
     if (isPinching.current && t.length === 2) {
+      if (zoomLockedRef.current) {
+        triggerFlash()
+        lastDist.current = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY)
+        return
+      }
       const newDist = Math.hypot(t[1].clientX - t[0].clientX, t[1].clientY - t[0].clientY)
       const ratio = newDist / lastDist.current
       const rect = stageRef.current.container().getBoundingClientRect()
@@ -233,6 +274,49 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
   const handleTouchEnd = (e: any) => {
     if ((e.evt as TouchEvent).touches.length < 2) isPinching.current = false
     handleMouseUp()
+  }
+
+  const handleWheel = (e: any) => {
+    e.evt.preventDefault()
+    if (zoomLockedRef.current) { triggerFlash(); return }
+    const stage = e.target.getStage()
+    const pointer = stage.getPointerPosition()
+    if (!pointer) return
+    const scaleBy = 1.12
+    const { scale: old, x: ox, y: oy } = zoomRef.current
+    const direction = e.evt.deltaY < 0 ? 1 : -1
+    const newScale = Math.max(0.5, Math.min(6, direction > 0 ? old * scaleBy : old / scaleBy))
+    applyZoom({
+      scale: newScale,
+      x: pointer.x - (pointer.x - ox) * (newScale / old),
+      y: pointer.y - (pointer.y - oy) * (newScale / old),
+    })
+  }
+
+  const resetZoom = () => applyZoom({ scale: 1, x: 0, y: 0 })
+
+  const zoomIn = () => {
+    const { scale: old, x: ox, y: oy } = zoomRef.current
+    const cx = COURT_WIDTH / 2
+    const cy = COURT_HEIGHT / 2
+    const newScale = Math.min(6, old * 1.25)
+    applyZoom({
+      scale: newScale,
+      x: cx - (cx - ox) * (newScale / old),
+      y: cy - (cy - oy) * (newScale / old),
+    })
+  }
+
+  const zoomOut = () => {
+    const { scale: old, x: ox, y: oy } = zoomRef.current
+    const cx = COURT_WIDTH / 2
+    const cy = COURT_HEIGHT / 2
+    const newScale = Math.max(0.5, old / 1.25)
+    applyZoom({
+      scale: newScale,
+      x: cx - (cx - ox) * (newScale / old),
+      y: cy - (cy - oy) * (newScale / old),
+    })
   }
 
   const handleStageClick = (e: any) => {
@@ -446,7 +530,7 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
       <div className="rounded-lg overflow-hidden border border-border">
         {drawingData
           ? <img src={drawingData} alt="" className="w-full block" />
-          : <div className={`${fieldType === 'half' ? 'aspect-[3/4]' : 'aspect-[2/3]'} bg-[#1a2e1a] flex items-center justify-center text-muted text-sm`}>Keine Zeichnung</div>
+          : <div className="w-full bg-[#1a2e1a] flex items-center justify-center text-muted text-sm" style={{ aspectRatio: '4/3' }}>Keine Zeichnung</div>
         }
       </div>
     )
@@ -471,18 +555,56 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
           </button>
         ))}
 
-        {/* Edit mode toggle */}
-        <button
-          type="button"
-          onClick={() => setEditMode(m => !m)}
-          className={`ml-auto px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-            editMode
-              ? 'bg-accent text-white'
-              : 'bg-surface text-muted hover:text-primary hover:bg-hover'
-          }`}
-        >
-          {editMode ? '✏ Zeichnen aktiv' : '✏ Zeichnen'}
-        </button>
+        {/* Edit mode toggle + Zoom controls */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setEditMode(m => !m)}
+            className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+              editMode
+                ? 'bg-accent text-white'
+                : 'bg-surface text-muted hover:text-primary hover:bg-hover'
+            }`}
+          >
+            {editMode ? '✏ Zeichnen aktiv' : '✏ Zeichnen'}
+          </button>
+
+          <div className="flex items-center gap-0.5 border-l border-border pl-2">
+            <button
+              type="button"
+              title="Herauszoomen"
+              onClick={zoomOut}
+              disabled={zoomLocked}
+              className="w-7 h-7 flex items-center justify-center text-base rounded bg-surface text-muted hover:text-primary hover:bg-hover disabled:opacity-40 disabled:cursor-not-allowed"
+            >−</button>
+            <button
+              type="button"
+              title="Zoom zurücksetzen"
+              onClick={resetZoom}
+              disabled={zoomLocked}
+              className="min-w-[44px] h-7 px-1 text-xs rounded bg-surface text-muted hover:text-primary hover:bg-hover tabular-nums disabled:opacity-40 disabled:cursor-not-allowed"
+            >{Math.round(zoomState.scale * 100)}%</button>
+            <button
+              type="button"
+              title="Hineinzoomen"
+              onClick={zoomIn}
+              disabled={zoomLocked}
+              className="w-7 h-7 flex items-center justify-center text-base rounded bg-surface text-muted hover:text-primary hover:bg-hover disabled:opacity-40 disabled:cursor-not-allowed"
+            >+</button>
+            <button
+              type="button"
+              title={zoomLocked ? 'Zoom entsperren' : 'Zoom einlocken'}
+              onClick={() => setZoomLocked(l => !l)}
+              className={`w-7 h-7 flex items-center justify-center text-base rounded transition-colors ${
+                zoomLockFlash
+                  ? 'bg-red-500 text-white'
+                  : zoomLocked
+                    ? 'bg-accent text-white'
+                    : 'bg-surface text-muted hover:text-primary hover:bg-hover'
+              }`}
+            >{zoomLocked ? '🔒' : '🔓'}</button>
+          </div>
+        </div>
       </div>
 
       {/* Toolbar — nur sichtbar wenn editMode */}
@@ -559,93 +681,110 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
         </div>
       )}
 
-      {/* Canvas area — festes Seitenverhältnis, kein flex-stretch */}
+      {/* Canvas area — Container beobachtet Größe, Stage wird via CSS-Transform skaliert */}
       <div
         ref={containerRef}
-        className={`relative w-full overflow-hidden ${fieldType === 'half' ? 'aspect-[3/4]' : 'aspect-[2/3]'}`}
-        style={{ cursor, touchAction: editMode ? 'none' : 'auto', maxHeight: '70vh' }}
+        style={{
+          width: '100%',
+          height: 'min(70vh, 600px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          background: '#111',
+          cursor,
+          touchAction: editMode ? 'none' : 'auto',
+        }}
       >
-        {stageSize.w > 0 && (
-          <Stage
-            ref={stageRef}
-            width={stageSize.w}
-            height={stageSize.h}
-            x={zoomState.x}
-            y={zoomState.y}
-            scaleX={zoomState.scale}
-            scaleY={zoomState.scale}
-            style={{ position: 'absolute', inset: 0 }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onClick={handleStageClick}
-            onTap={handleStageClick}
+          <div
+            className="relative"
+            style={{
+              width: COURT_WIDTH,
+              height: COURT_HEIGHT,
+              flexShrink: 0,
+              transform: `scale(${scale})`,
+              transformOrigin: 'center center',
+            }}
           >
-            <Layer>
-              {/* Hintergrundbild als Konva-Node (wird in PNG-Export erfasst) */}
-              {courtImg && (
-                <KonvaImage
-                  image={courtImg}
-                  x={0} y={0}
-                  width={stageSize.w}
-                  height={stageSize.h}
-                  listening={false}
+            <Stage
+              ref={stageRef}
+              width={COURT_WIDTH}
+              height={COURT_HEIGHT}
+              x={zoomState.x}
+              y={zoomState.y}
+              scaleX={zoomState.scale}
+              scaleY={zoomState.scale}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onClick={handleStageClick}
+              onTap={handleStageClick}
+              onWheel={handleWheel}
+            >
+              <Layer>
+                {courtImg && (
+                  <KonvaImage
+                    image={courtImg}
+                    x={0} y={0}
+                    width={COURT_WIDTH}
+                    height={COURT_HEIGHT}
+                    listening={false}
+                  />
+                )}
+                {elements.map(el => renderElement(el))}
+                <Transformer
+                  ref={transformerRef}
+                  rotateEnabled={true}
+                  boundBoxFunc={(oldBox, newBox) => {
+                    if (newBox.width < 10 || newBox.height < 10) return oldBox
+                    return newBox
+                  }}
                 />
-              )}
-              {elements.map(el => renderElement(el))}
-              <Transformer
-                ref={transformerRef}
-                rotateEnabled={true}
-                boundBoxFunc={(oldBox, newBox) => {
-                  if (newBox.width < 10 || newBox.height < 10) return oldBox
-                  return newBox
+              </Layer>
+            </Stage>
+
+            {/* Text editing overlay */}
+            {editingText && (
+              <input
+                type="text"
+                autoFocus
+                value={editingText.text}
+                onChange={e => setEditingText({ ...editingText, text: e.target.value })}
+                onBlur={commitTextEdit}
+                onKeyDown={e => { if (e.key === 'Enter') commitTextEdit() }}
+                style={{
+                  position: 'absolute',
+                  left: editingText.x,
+                  top: editingText.y,
+                  fontSize: 16,
+                  fontFamily: 'sans-serif',
+                  color: editingText.color,
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid #999',
+                  borderRadius: 3,
+                  padding: '2px 4px',
+                  minWidth: 60,
+                  zIndex: 10,
+                  outline: 'none',
                 }}
               />
-            </Layer>
-          </Stage>
-        )}
+            )}
 
-        {/* Text editing overlay */}
-        {editingText && (
-          <input
-            type="text"
-            autoFocus
-            value={editingText.text}
-            onChange={e => setEditingText({ ...editingText, text: e.target.value })}
-            onBlur={commitTextEdit}
-            onKeyDown={e => { if (e.key === 'Enter') commitTextEdit() }}
-            style={{
-              position: 'absolute',
-              left: editingText.x,
-              top: editingText.y,
-              fontSize: 16,
-              fontFamily: 'sans-serif',
-              color: editingText.color,
-              background: 'rgba(255,255,255,0.92)',
-              border: '1px solid #999',
-              borderRadius: 3,
-              padding: '2px 4px',
-              minWidth: 60,
-              zIndex: 10,
-              outline: 'none',
-            }}
-          />
-        )}
-
-        {/* Overlay-Hinweis wenn editMode inaktiv */}
-        {!editMode && (
-          <div
-            className="absolute inset-0 flex items-center justify-center bg-black/10 cursor-pointer"
-            onClick={() => setEditMode(true)}
-          >
-            <span className="bg-surface/90 text-primary text-sm font-medium px-3 py-1.5 rounded-full border border-border shadow">
-              Tippen zum Zeichnen
-            </span>
+            {/* Overlay-Hinweis wenn editMode inaktiv */}
+            {!editMode && (
+              <div
+                className="absolute inset-0 flex items-center justify-center bg-black/10 cursor-pointer"
+                onClick={() => setEditMode(true)}
+              >
+                <span className="bg-black/80 text-white text-sm font-medium px-4 py-2 rounded-full border border-white/20 shadow-lg">
+                  Tippen zum Zeichnen
+                </span>
+              </div>
+            )}
           </div>
-        )}
       </div>
 
       {/* Save button */}
