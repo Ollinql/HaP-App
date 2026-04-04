@@ -108,7 +108,8 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
     }
   }
 
-  const courtImage = fieldType === 'half' ? '/courts/half-court.png' : '/courts/full-court.png'
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  const courtImage = fieldType === 'half' ? `${base}/courts/half-court.png` : `${base}/courts/full-court.png`
 
   const getPos = (e: any) => e.target.getStage().getPointerPosition() as { x: number; y: number } | null
 
