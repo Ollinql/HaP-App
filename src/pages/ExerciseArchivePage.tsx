@@ -17,6 +17,7 @@ export function ExerciseArchivePage() {
   const [editEx, setEditEx] = useState<Exercise | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [newExOpen, setNewExOpen] = useState(false)
+  const [creationStep, setCreationStep] = useState<'metadata' | 'canvas'>('metadata')
 
   const allTags = [...new Set(exercises.flatMap((e) => e.tags))]
 
@@ -35,22 +36,28 @@ export function ExerciseArchivePage() {
       createdAt: new Date().toISOString(),
     }
     setEditEx(ex)
+    setCreationStep('metadata')
     setNewExOpen(true)
   }
 
-  const handleSaveEdit = (ex: Exercise) => {
-    if (newExOpen) {
-      addExercise(ex)
-      setNewExOpen(false)
-    } else {
-      updateExercise(ex)
-    }
+  const handleCloseModal = () => {
     setEditEx(null)
+    setNewExOpen(false)
+    setCreationStep('metadata')
   }
 
-  const handleSaveDrawing = (data: string) => {
+  // Zeichnung speichern = Übung direkt committen
+  const handleSaveDrawingAndCommit = (pngDataUrl: string, elementsJson: string) => {
     if (!editEx) return
-    setEditEx({ ...editEx, drawingData: data })
+    const updated: Exercise = { ...editEx, drawingData: pngDataUrl, drawingElements: elementsJson }
+    if (newExOpen) {
+      addExercise(updated)
+    } else {
+      updateExercise(updated)
+    }
+    setEditEx(null)
+    setNewExOpen(false)
+    setCreationStep('metadata')
   }
 
   const SECTION_OPTIONS: { value: SectionKey; label: string }[] = [
@@ -145,7 +152,7 @@ export function ExerciseArchivePage() {
                 </div>
                 <div className="flex gap-1.5 mt-2">
                   <button
-                    onClick={() => { setEditEx({ ...ex }); setNewExOpen(false) }}
+                    onClick={() => { setEditEx({ ...ex }); setCreationStep('metadata'); setNewExOpen(false) }}
                     className="text-xs text-muted hover:text-accent transition-colors"
                   >
                     ✎ Bearbeiten
@@ -172,7 +179,7 @@ export function ExerciseArchivePage() {
               {previewEx.tags.map((t) => <Badge key={t} label={t} />)}
             </div>
             <div className="flex justify-end">
-              <Button onClick={() => { setPreviewEx(null); setEditEx({ ...previewEx }); setNewExOpen(false) }}>
+              <Button onClick={() => { setPreviewEx(null); setEditEx({ ...previewEx }); setCreationStep('metadata'); setNewExOpen(false) }}>
                 Bearbeiten
               </Button>
             </div>
@@ -183,11 +190,12 @@ export function ExerciseArchivePage() {
       {/* Edit / Create modal */}
       <Modal
         open={!!editEx}
-        onClose={() => { setEditEx(null); setNewExOpen(false) }}
+        onClose={handleCloseModal}
         title={newExOpen ? 'Neue Übung' : 'Übung bearbeiten'}
-        size="lg"
+        size={creationStep === 'canvas' ? 'xl' : 'lg'}
+        fullscreen={creationStep === 'canvas'}
       >
-        {editEx && (
+        {editEx && creationStep === 'metadata' && (
           <div className="p-4 space-y-4">
             <div>
               <label className="block text-xs text-muted mb-1">Titel</label>
@@ -197,6 +205,7 @@ export function ExerciseArchivePage() {
                 onChange={(e) => setEditEx({ ...editEx, title: e.target.value })}
                 placeholder="Übungsbezeichnung"
                 className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm text-primary outline-none focus:border-accent"
+                autoFocus
               />
             </div>
             <div>
@@ -219,17 +228,34 @@ export function ExerciseArchivePage() {
                 suggestions={settings.globalTags}
               />
             </div>
-            <DrawingCanvas
-              drawingData={editEx.drawingData}
-              onSave={handleSaveDrawing}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => { setEditEx(null); setNewExOpen(false) }}>
-                Abbrechen
-              </Button>
-              <Button onClick={() => handleSaveEdit(editEx)}>
-                Übung speichern
-              </Button>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="secondary" onClick={handleCloseModal}>Abbrechen</Button>
+              <Button onClick={() => setCreationStep('canvas')}>Weiter →</Button>
+            </div>
+          </div>
+        )}
+
+        {editEx && creationStep === 'canvas' && (
+          <div className="flex flex-col h-full">
+            {/* Zurück-Streifen */}
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
+              <button
+                type="button"
+                onClick={() => setCreationStep('metadata')}
+                className="text-sm text-muted hover:text-primary transition-colors"
+              >
+                ← Zurück
+              </button>
+              <span className="text-xs text-muted ml-auto truncate max-w-[200px]">
+                {editEx.title || 'Unbenannt'}
+              </span>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <DrawingCanvas
+                drawingElements={editEx.drawingElements}
+                drawingData={editEx.drawingData}
+                onSave={handleSaveDrawingAndCommit}
+              />
             </div>
           </div>
         )}

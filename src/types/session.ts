@@ -5,7 +5,8 @@ export interface Exercise {
   id: string
   title: string
   tags: string[]
-  drawingData: string // base64 PNG data URL
+  drawingData: string          // base64 PNG data URL
+  drawingElements?: string     // JSON.stringify(CanvasElement[]) — für Weiterbearbeitung
   section: SectionKey
   createdAt: string // ISO date string
 }

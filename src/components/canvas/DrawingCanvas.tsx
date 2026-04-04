@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Stage, Layer, Line, Arrow, RegularPolygon, Circle, Text as KonvaText, Transformer } from 'react-konva'
+import { Stage, Layer, Line, Arrow, RegularPolygon, Circle, Text as KonvaText, Transformer, Image as KonvaImage } from 'react-konva'
 
 type FieldType = 'half' | 'full'
 
@@ -40,8 +40,9 @@ type CanvasElement =
 function uid() { return Math.random().toString(36).slice(2, 10) }
 
 interface DrawingCanvasProps {
-  drawingData?: string
-  onSave?: (data: string) => void
+  drawingData?: string          // PNG data URL — nur für readOnly-Anzeige
+  drawingElements?: string      // JSON.stringify(CanvasElement[]) — Seed für Bearbeitung
+  onSave?: (pngDataUrl: string, elementsJson: string) => void
   readOnly?: boolean
 }
 
@@ -50,13 +51,14 @@ const DRAW_TOOLS: ToolType[] = ['stift', 'pfeil', 'gestrichelter-pfeil']
 const UNIFORM_SCALE_TYPES = ['kleiner-kegel', 'grosser-kegel', 'kreis']
 const TRANSFORMABLE_TYPES = ['kleiner-kegel', 'grosser-kegel', 'dreieck', 'kreis', 'text']
 
-export function DrawingCanvas({ drawingData, onSave, readOnly = false }: DrawingCanvasProps) {
+export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly = false }: DrawingCanvasProps) {
   const [fieldType, setFieldType] = useState<FieldType>('half')
   const [activeTool, setActiveTool] = useState<ToolType>('stift')
   const [activeColor, setActiveColor] = useState('#000000')
   const [elements, setElements] = useState<CanvasElement[]>([])
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 })
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [courtImg, setCourtImg] = useState<HTMLImageElement | null>(null)
   const [editingText, setEditingText] = useState<{
     id: string; x: number; y: number; text: string; color: string
   } | null>(null)
@@ -72,12 +74,14 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
     setElements(next)
   }
 
+  // Elemente aus drawingElements laden (JSON-Array für Weiterbearbeitung)
   useEffect(() => {
-    if (drawingData) {
-      try { syncElements(JSON.parse(drawingData)) } catch { /* ignore */ }
+    if (drawingElements) {
+      try { syncElements(JSON.parse(drawingElements)) } catch { /* ignore */ }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Container-Größe beobachten
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -88,12 +92,14 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
     return () => ro.disconnect()
   }, [])
 
+  // Feldtyp-Wechsel leert Canvas
   useEffect(() => {
     syncElements([])
     detachTransformer()
     setSelectedId(null)
   }, [fieldType]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Draw-Tool deselektiert Transformer
   useEffect(() => {
     if (DRAW_TOOLS.includes(activeTool)) {
       detachTransformer()
@@ -101,15 +107,38 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
     }
   }, [activeTool]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Touch-Scroll verhindern (Apple Pencil Fix)
+  useEffect(() => {
+    if (readOnly) return
+    const el = containerRef.current
+    if (!el) return
+    const prevent = (e: TouchEvent) => e.preventDefault()
+    el.addEventListener('touchmove', prevent, { passive: false })
+    el.addEventListener('touchstart', prevent, { passive: false })
+    return () => {
+      el.removeEventListener('touchmove', prevent)
+      el.removeEventListener('touchstart', prevent)
+    }
+  }, [readOnly])
+
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+  const courtImage = fieldType === 'half' ? `${base}/courts/half-court.png` : `${base}/courts/full-court.png`
+
+  // Hintergrundbild als Konva-Node laden (wird in toDataURL() erfasst)
+  useEffect(() => {
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    img.src = courtImage
+    img.onload = () => setCourtImg(img)
+    setCourtImg(null) // Reset während Laden
+  }, [courtImage])
+
   const detachTransformer = () => {
     if (transformerRef.current) {
       transformerRef.current.nodes([])
       transformerRef.current.getLayer()?.batchDraw()
     }
   }
-
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '')
-  const courtImage = fieldType === 'half' ? `${base}/courts/half-court.png` : `${base}/courts/full-court.png`
 
   const getPos = (e: any) => e.target.getStage().getPointerPosition() as { x: number; y: number } | null
 
@@ -350,10 +379,22 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
     : DRAW_TOOLS.includes(activeTool) ? 'crosshair'
     : 'copy'
 
+  // ReadOnly: nur das gespeicherte PNG anzeigen
+  if (readOnly) {
+    return (
+      <div className="rounded-lg overflow-hidden border border-border">
+        {drawingData
+          ? <img src={drawingData} alt="" className="w-full block" />
+          : <div className={`${fieldType === 'half' ? 'aspect-[3/4]' : 'aspect-[2/3]'} bg-[#1a2e1a] flex items-center justify-center text-muted text-sm`}>Keine Zeichnung</div>
+        }
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col rounded-lg overflow-hidden border border-border">
+    <div className="flex flex-col rounded-lg overflow-hidden border border-border h-full">
       {/* Field type selector */}
-      <div className="flex gap-2 px-3 py-2 bg-elevated border-b border-border">
+      <div className="flex gap-2 px-3 py-2 bg-elevated border-b border-border shrink-0">
         {(['half', 'full'] as FieldType[]).map(ft => (
           <button
             key={ft}
@@ -371,82 +412,83 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
       </div>
 
       {/* Toolbar */}
-      {!readOnly && (
-        <div className="flex items-center gap-1 px-2 py-1 bg-elevated border-b border-border overflow-x-auto min-h-[52px]">
-          {/* Shapes */}
-          {toolBtn('kleiner-kegel',
-            <span style={{ display:'inline-block', width:0, height:0, borderLeft:'7px solid transparent', borderRight:'7px solid transparent', borderBottom:'12px solid #f97316' }} />,
-            'Kleiner Kegel'
-          )}
-          {toolBtn('grosser-kegel',
-            <span style={{ display:'inline-block', width:0, height:0, borderLeft:'11px solid transparent', borderRight:'11px solid transparent', borderBottom:'20px solid #f97316' }} />,
-            'Großer Kegel'
-          )}
-          {toolBtn('dreieck',
-            <span style={{ display:'inline-block', width:0, height:0, borderLeft:'8px solid transparent', borderRight:'8px solid transparent', borderBottom:`14px solid ${activeColor}` }} />,
-            'Dreieck (Spieler)'
-          )}
-          {toolBtn('kreis',
-            <span style={{ display:'inline-block', width:14, height:14, borderRadius:'50%', background: activeColor }} />,
-            'Kreis'
-          )}
-          {toolBtn('text', <span className="font-bold text-sm">T</span>, 'Text')}
+      <div className="flex items-center gap-1 px-2 py-1 bg-elevated border-b border-border overflow-x-auto min-h-[52px] shrink-0">
+        {/* Shapes */}
+        {toolBtn('kleiner-kegel',
+          <span style={{ display:'inline-block', width:0, height:0, borderLeft:'7px solid transparent', borderRight:'7px solid transparent', borderBottom:'12px solid #f97316' }} />,
+          'Kleiner Kegel'
+        )}
+        {toolBtn('grosser-kegel',
+          <span style={{ display:'inline-block', width:0, height:0, borderLeft:'11px solid transparent', borderRight:'11px solid transparent', borderBottom:'20px solid #f97316' }} />,
+          'Großer Kegel'
+        )}
+        {toolBtn('dreieck',
+          <span style={{ display:'inline-block', width:0, height:0, borderLeft:'8px solid transparent', borderRight:'8px solid transparent', borderBottom:`14px solid ${activeColor}` }} />,
+          'Dreieck (Spieler)'
+        )}
+        {toolBtn('kreis',
+          <span style={{ display:'inline-block', width:14, height:14, borderRadius:'50%', background: activeColor }} />,
+          'Kreis'
+        )}
+        {toolBtn('text', <span className="font-bold text-sm">T</span>, 'Text')}
 
-          <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
+        <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
 
-          {/* Draw tools */}
-          {toolBtn('stift', <span>✏️</span>, 'Stift')}
-          {toolBtn('pfeil', <span className="text-base font-bold">→</span>, 'Pfeil')}
-          {toolBtn('gestrichelter-pfeil', <span className="text-base">⇢</span>, 'Gestrichelter Pfeil')}
+        {/* Draw tools */}
+        {toolBtn('stift', <span>✏️</span>, 'Stift')}
+        {toolBtn('pfeil', <span className="text-base font-bold">→</span>, 'Pfeil')}
+        {toolBtn('gestrichelter-pfeil', <span className="text-base">⇢</span>, 'Gestrichelter Pfeil')}
 
-          <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
+        <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
 
-          {/* Radierer */}
-          {toolBtn('radierer', <span>⌫</span>, 'Radierer')}
+        {/* Radierer */}
+        {toolBtn('radierer', <span>⌫</span>, 'Radierer')}
 
-          {/* Undo */}
+        {/* Undo */}
+        <button
+          type="button"
+          title="Rückgängig"
+          onClick={() => syncElements(elementsRef.current.slice(0, -1))}
+          className="flex-shrink-0 min-w-[44px] h-[44px] px-2 flex items-center justify-center text-xs font-medium rounded transition-colors bg-surface text-muted hover:text-primary hover:bg-hover"
+        >
+          ↩
+        </button>
+
+        {/* Leer */}
+        <button
+          type="button"
+          title="Alles löschen"
+          onClick={() => syncElements([])}
+          className="flex-shrink-0 min-w-[44px] h-[44px] px-2 flex items-center justify-center text-xs font-medium rounded transition-colors bg-surface text-muted hover:text-red-400 hover:bg-hover"
+        >
+          ✕ Leer
+        </button>
+
+        <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
+
+        {/* Color palette */}
+        {COLORS.map(c => (
           <button
+            key={c.value}
             type="button"
-            title="Rückgängig"
-            onClick={() => syncElements(elementsRef.current.slice(0, -1))}
-            className="flex-shrink-0 min-w-[44px] h-[44px] px-2 flex items-center justify-center text-xs font-medium rounded transition-colors bg-surface text-muted hover:text-primary hover:bg-hover"
-          >
-            ↩
-          </button>
+            title={c.label}
+            onClick={() => setActiveColor(c.value)}
+            style={{ backgroundColor: c.value }}
+            className={`flex-shrink-0 w-[30px] h-[30px] rounded-full transition-transform ${
+              activeColor === c.value
+                ? 'scale-110 ring-2 ring-white ring-offset-1 ring-offset-elevated'
+                : 'hover:scale-105'
+            }`}
+          />
+        ))}
+      </div>
 
-          {/* Leer */}
-          <button
-            type="button"
-            title="Alles löschen"
-            onClick={() => syncElements([])}
-            className="flex-shrink-0 min-w-[44px] h-[44px] px-2 flex items-center justify-center text-xs font-medium rounded transition-colors bg-surface text-muted hover:text-red-400 hover:bg-hover"
-          >
-            ✕ Leer
-          </button>
-
-          <div className="w-px h-6 bg-border mx-0.5 flex-shrink-0" />
-
-          {/* Color palette */}
-          {COLORS.map(c => (
-            <button
-              key={c.value}
-              type="button"
-              title={c.label}
-              onClick={() => setActiveColor(c.value)}
-              style={{ backgroundColor: c.value }}
-              className={`flex-shrink-0 w-[30px] h-[30px] rounded-full transition-transform ${
-                activeColor === c.value
-                  ? 'scale-110 ring-2 ring-white ring-offset-1 ring-offset-elevated'
-                  : 'hover:scale-105'
-              }`}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Canvas area */}
-      <div ref={containerRef} className="relative w-full" style={{ cursor }}>
-        <img src={courtImage} alt="" className="w-full block" style={{ objectFit: 'contain' }} />
+      {/* Canvas area — füllt verbleibende Höhe */}
+      <div
+        ref={containerRef}
+        className={`relative w-full flex-1 min-h-0 ${fieldType === 'half' ? 'aspect-[3/4]' : 'aspect-[2/3]'}`}
+        style={{ cursor, touchAction: 'none' }}
+      >
         {stageSize.w > 0 && (
           <Stage
             ref={stageRef}
@@ -463,6 +505,16 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
             onTap={handleStageClick}
           >
             <Layer>
+              {/* Hintergrundbild als Konva-Node (wird in PNG-Export erfasst) */}
+              {courtImg && (
+                <KonvaImage
+                  image={courtImg}
+                  x={0} y={0}
+                  width={stageSize.w}
+                  height={stageSize.h}
+                  listening={false}
+                />
+              )}
               {elements.map(el => renderElement(el))}
               <Transformer
                 ref={transformerRef}
@@ -505,11 +557,16 @@ export function DrawingCanvas({ drawingData, onSave, readOnly = false }: Drawing
       </div>
 
       {/* Save button */}
-      {!readOnly && onSave && (
-        <div className="flex justify-end px-3 py-2 bg-elevated border-t border-border">
+      {onSave && (
+        <div className="flex justify-end px-3 py-2 bg-elevated border-t border-border shrink-0">
           <button
             type="button"
-            onClick={() => onSave(JSON.stringify(elementsRef.current))}
+            onClick={() => {
+              if (!stageRef.current) return
+              const pngDataUrl = stageRef.current.toDataURL({ pixelRatio: 1 })
+              const elementsJson = JSON.stringify(elementsRef.current)
+              onSave(pngDataUrl, elementsJson)
+            }}
             className="px-3 py-1.5 bg-accent hover:bg-accent-hover text-white text-sm rounded-md font-medium transition-colors"
           >
             Zeichnung speichern

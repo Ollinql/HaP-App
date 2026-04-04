@@ -13,8 +13,8 @@ interface ExerciseCardProps {
 export function ExerciseCard({ exercise, onUpdate, onRemove }: ExerciseCardProps) {
   const [canvasOpen, setCanvasOpen] = useState(false)
 
-  const handleSaveDrawing = (data: string) => {
-    onUpdate({ ...exercise, drawingData: data })
+  const handleSaveDrawing = (pngDataUrl: string, elementsJson: string) => {
+    onUpdate({ ...exercise, drawingData: pngDataUrl, drawingElements: elementsJson })
     setCanvasOpen(false)
   }
 
@@ -77,6 +77,7 @@ export function ExerciseCard({ exercise, onUpdate, onRemove }: ExerciseCardProps
         <div className="p-4">
           <DrawingCanvas
             drawingData={exercise.drawingData}
+            drawingElements={exercise.drawingElements}
             onSave={handleSaveDrawing}
           />
         </div>

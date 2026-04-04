@@ -7,6 +7,7 @@ interface ModalProps {
   title?: string
   children: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  fullscreen?: boolean
 }
 
 const SIZES = {
@@ -16,7 +17,7 @@ const SIZES = {
   xl: 'max-w-4xl',
 }
 
-export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+export function Modal({ open, onClose, title, children, size = 'md', fullscreen = false }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -44,9 +45,10 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
     >
       <div
         className={[
-          'bg-elevated border border-border rounded-xl shadow-2xl w-full',
-          'flex flex-col max-h-[90vh]',
-          SIZES[size],
+          'bg-elevated border border-border shadow-2xl w-full flex flex-col',
+          fullscreen
+            ? 'h-[100dvh] max-h-none rounded-none'
+            : `rounded-xl max-h-[90vh] ${SIZES[size]}`,
         ].join(' ')}
         role="dialog"
         aria-modal="true"
