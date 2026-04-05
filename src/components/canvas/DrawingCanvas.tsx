@@ -108,6 +108,7 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
   const flashTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const scale = useCourtScale(containerRef)
+  const prevFieldTypeRef = useRef(fieldType)
 
   const syncElements = (next: CanvasElement[]) => {
     elementsRef.current = next
@@ -136,10 +137,12 @@ export function DrawingCanvas({ drawingData, drawingElements, onSave, readOnly =
     if (drawingElements) {
       try { syncElements(JSON.parse(drawingElements)) } catch { /* ignore */ }
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [drawingElements]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Feldtyp-Wechsel leert Canvas und resettet Zoom
+  // Feldtyp-Wechsel leert Canvas und resettet Zoom (nicht beim ersten Mount)
   useEffect(() => {
+    if (prevFieldTypeRef.current === fieldType) return
+    prevFieldTypeRef.current = fieldType
     syncElements([])
     detachTransformer()
     setSelectedId(null)
