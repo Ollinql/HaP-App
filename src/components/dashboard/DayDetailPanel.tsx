@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../store/AppContext'
 import { fromISODate, formatDateLong, getMondayOfWeek, toISODate, getISOWeek } from '../../utils/dateUtils'
@@ -33,8 +33,10 @@ const SECTION_LABELS: Record<string, string> = {
 
 export function DayDetailPanel({ date, onClose }: DayDetailPanelProps) {
   const navigate = useNavigate()
-  const { sessions, seasons } = useApp()
+  const { sessions, exercises, seasons } = useApp()
   const [trainingRunOpen, setTrainingRunOpen] = useState(false)
+
+  const exerciseMap = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
 
   const session = sessions.find((s) => s.date === date)
 
@@ -128,15 +130,19 @@ export function DayDetailPanel({ date, onClose }: DayDetailPanelProps) {
           {/* Sections */}
           <div className="space-y-2">
             {(['warmup', 'main', 'closing'] as const).map((sectionKey) => {
-              const exercises = session.sections[sectionKey]
-              if (exercises.length === 0) return null
+              const refs = session.sections[sectionKey]
+              if (refs.length === 0) return null
+              const resolved = refs.flatMap((ref) => {
+                const ex = exerciseMap.get(ref.exerciseId)
+                return ex ? [ex] : []
+              })
               return (
                 <div key={sectionKey}>
                   <p className="text-xs font-medium text-muted uppercase tracking-wide mb-1">
-                    {SECTION_LABELS[sectionKey]} ({exercises.length})
+                    {SECTION_LABELS[sectionKey]} ({refs.length})
                   </p>
                   <ul className="space-y-0.5">
-                    {exercises.map((ex) => (
+                    {resolved.map((ex) => (
                       <li key={ex.id} className="text-xs text-primary pl-2 border-l border-border">
                         {ex.title || '—'}
                       </li>

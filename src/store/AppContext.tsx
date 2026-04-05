@@ -1,9 +1,37 @@
 import { createContext, useContext, useEffect, useMemo, ReactNode } from 'react'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import type { Season, Phase, Microcycle } from '../types/season'
-import type { TrainingSession, Exercise } from '../types/session'
+import type { TrainingSession, Exercise, SessionExerciseRef, SectionKey } from '../types/session'
 import type { Settings, DayKey, Goal } from '../types/settings'
 import { generateId } from '../utils/idUtils'
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function deduplicateExercises(exercises: Exercise[]): Exercise[] {
+  const byId = new Map<string, Exercise>()
+  for (const ex of exercises) {
+    if (!byId.has(ex.id)) byId.set(ex.id, ex)
+  }
+  const byNameSection = new Map<string, boolean>()
+  const result: Exercise[] = []
+  for (const ex of byId.values()) {
+    if (!ex.title) { result.push(ex); continue }
+    const key = `${ex.title.trim().toLowerCase()}::${ex.section}`
+    if (!byNameSection.has(key)) { byNameSection.set(key, true); result.push(ex) }
+  }
+  return result
+}
+
+// Detects old-format sessions where sections still contain full Exercise objects
+function isOldFormatSession(session: TrainingSession): boolean {
+  for (const sectionKey of ['warmup', 'main', 'closing'] as SectionKey[]) {
+    const items = session.sections[sectionKey] as unknown[]
+    if (items.length > 0 && typeof items[0] === 'object' && items[0] !== null && 'title' in items[0]) {
+      return true
+    }
+  }
+  return false
+}
 
 const DEFAULT_SETTINGS: Settings = {
   trainingDays: {
@@ -94,6 +122,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (settings.trainingGoals.some((g) => typeof g === 'string')) {
       setSettings(migratedSettings)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Deduplicate archive on startup (by ID, then by title+section)
+  useEffect(() => {
+    const deduped = deduplicateExercises(exercises)
+    if (deduped.length !== exercises.length) {
+      setExercises(deduped)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Migrate old-format sessions (sections had full Exercise objects, not SessionExerciseRef)
+  useEffect(() => {
+    const needsMigration = sessions.some(isOldFormatSession)
+    if (!needsMigration) return
+
+    const extractedExercises: Exercise[] = []
+
+    const migratedSessions: TrainingSession[] = sessions.map((session) => {
+      if (!isOldFormatSession(session)) return session
+
+      const newSections: Record<SectionKey, SessionExerciseRef[]> = { warmup: [], main: [], closing: [] }
+      for (const sectionKey of ['warmup', 'main', 'closing'] as SectionKey[]) {
+        const items = session.sections[sectionKey] as unknown[]
+        newSections[sectionKey] = items.map((item) => {
+          const raw = item as Record<string, unknown>
+          if ('exerciseId' in raw) return raw as unknown as SessionExerciseRef
+          // Old Exercise object — extract into archive and create ref
+          const ex = raw as unknown as Exercise & { intensityFeedback?: number | null }
+          const { intensityFeedback, ...archiveEx } = ex
+          extractedExercises.push(archiveEx as Exercise)
+          return {
+            exerciseId: ex.id,
+            section: sectionKey,
+            intensityFeedback: intensityFeedback ?? null,
+          } satisfies SessionExerciseRef
+        })
+      }
+      return { ...session, sections: newSections }
+    })
+
+    // Upsert extracted exercises into archive, then deduplicate
+    setExercises((prev) => {
+      const map = new Map(prev.map((e) => [e.id, e]))
+      for (const ex of extractedExercises) {
+        if (!map.has(ex.id)) map.set(ex.id, ex)
+      }
+      return deduplicateExercises(Array.from(map.values()))
+    })
+
+    setSessions(migratedSessions)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -196,7 +276,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Exercise helpers ────────────────────────────────────────────────────────
 
   function addExercise(exercise: Exercise) {
-    setExercises((prev) => [...prev, exercise])
+    setExercises((prev) => {
+      const exists = prev.some((e) => e.id === exercise.id)
+      if (exists) return prev.map((e) => (e.id === exercise.id ? exercise : e))
+      return [...prev, exercise]
+    })
   }
 
   function updateExercise(exercise: Exercise) {

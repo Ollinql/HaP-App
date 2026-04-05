@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../store/AppContext'
-import type { TrainingSession, Exercise, SectionKey } from '../types'
+import type { TrainingSession, Exercise, SectionKey, SessionExerciseRef } from '../types'
 import { generateId } from '../utils/idUtils'
 import { toISODate, isDatePast, formatDateLong } from '../utils/dateUtils'
 import { Button } from '../components/ui/Button'
@@ -35,16 +35,34 @@ function createBlankSession(date: string, duration: number): TrainingSession {
   }
 }
 
+function resolveSessionSections(
+  sections: Record<SectionKey, SessionExerciseRef[]>,
+  exerciseMap: Map<string, Exercise>,
+): Record<SectionKey, Exercise[]> {
+  const resolve = (refs: SessionExerciseRef[]): Exercise[] =>
+    refs.flatMap((ref) => {
+      const ex = exerciseMap.get(ref.exerciseId)
+      return ex ? [{ ...ex, section: ref.section }] : []
+    })
+  return {
+    warmup: resolve(sections.warmup),
+    main: resolve(sections.main),
+    closing: resolve(sections.closing),
+  }
+}
+
 export function SessionEditorPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { sessions, settings, seasons, addSession, updateSession, deleteSession, addExercise } = useApp()
+  const { sessions, exercises, settings, seasons, addSession, updateSession, deleteSession, addExercise } = useApp()
 
   const isNew = id === undefined
   const dateParam = searchParams.get('date') ?? toISODate(new Date())
 
   const existing = id ? sessions.find((s) => s.id === id) : undefined
+
+  const exerciseMap = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
 
   const [session, setSession] = useState<TrainingSession>(() => {
     if (existing) return { ...existing }
@@ -57,7 +75,14 @@ export function SessionEditorPage() {
     return createBlankSession(dateParam, duration)
   })
 
+  // Local working copy of exercises (resolved from refs for editing)
+  const [localSections, setLocalSections] = useState<Record<SectionKey, Exercise[]>>(() => {
+    if (existing) return resolveSessionSections(existing.sections, exerciseMap)
+    return { warmup: [], main: [], closing: [] }
+  })
+
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [pickerState, setPickerState] = useState<{ open: boolean; section: SectionKey }>({
     open: false,
     section: 'main',
@@ -65,7 +90,6 @@ export function SessionEditorPage() {
 
   const isPast = isDatePast(session.date)
 
-  // All phases from all seasons for the dropdown
   const allPhases = seasons.flatMap((s) => s.phases)
 
   const updateField = <K extends keyof TrainingSession>(key: K, value: TrainingSession[K]) => {
@@ -73,22 +97,16 @@ export function SessionEditorPage() {
   }
 
   const updateSectionExercise = (section: SectionKey, index: number, exercise: Exercise) => {
-    setSession((prev) => ({
+    setLocalSections((prev) => ({
       ...prev,
-      sections: {
-        ...prev.sections,
-        [section]: prev.sections[section].map((e, i) => (i === index ? exercise : e)),
-      },
+      [section]: prev[section].map((e, i) => (i === index ? exercise : e)),
     }))
   }
 
   const removeSectionExercise = (section: SectionKey, index: number) => {
-    setSession((prev) => ({
+    setLocalSections((prev) => ({
       ...prev,
-      sections: {
-        ...prev.sections,
-        [section]: prev.sections[section].filter((_, i) => i !== index),
-      },
+      [section]: prev[section].filter((_, i) => i !== index),
     }))
   }
 
@@ -101,38 +119,52 @@ export function SessionEditorPage() {
       section,
       createdAt: new Date().toISOString(),
     }
-    setSession((prev) => ({
+    setLocalSections((prev) => ({
       ...prev,
-      sections: {
-        ...prev.sections,
-        [section]: [...prev.sections[section], ex],
-      },
+      [section]: [...prev[section], ex],
     }))
   }
 
   const pickExercise = (exercise: Exercise) => {
     const section = pickerState.section
-    setSession((prev) => ({
+    setLocalSections((prev) => ({
       ...prev,
-      sections: {
-        ...prev.sections,
-        [section]: [...prev.sections[section], { ...exercise, section }],
-      },
+      [section]: [...prev[section], { ...exercise, section }],
     }))
   }
 
   const handleSave = () => {
-    // Also persist each exercise to the archive if it has a title
-    session.sections.warmup.concat(session.sections.main, session.sections.closing).forEach((ex) => {
-      if (ex.title) {
-        addExercise(ex)
-      }
-    })
+    const allLocal = [...localSections.warmup, ...localSections.main, ...localSections.closing]
+    const hasUntitled = allLocal.some((ex) => !ex.title.trim())
+    if (hasUntitled) {
+      setSaveError('Bitte alle Übungen benennen, bevor du speicherst.')
+      return
+    }
+    setSaveError(null)
+
+    // Upsert all exercises into the archive (addExercise is an upsert)
+    allLocal.forEach((ex) => addExercise(ex))
+
+    // Convert local exercises to ID references
+    const toRefs = (section: SectionKey): SessionExerciseRef[] =>
+      localSections[section].map((ex) => ({
+        exerciseId: ex.id,
+        section,
+      }))
+
+    const sessionToSave: TrainingSession = {
+      ...session,
+      sections: {
+        warmup: toRefs('warmup'),
+        main: toRefs('main'),
+        closing: toRefs('closing'),
+      },
+    }
 
     if (isNew) {
-      addSession(session)
+      addSession(sessionToSave)
     } else {
-      updateSession(session)
+      updateSession(sessionToSave)
     }
     navigate('/')
   }
@@ -241,11 +273,11 @@ export function SessionEditorPage() {
         <CollapsibleSection
           key={section}
           title={SECTION_LABELS[section]}
-          badge={session.sections[section].length}
+          badge={localSections[section].length}
           defaultOpen={section === 'main'}
         >
           <div className="space-y-2">
-            {session.sections[section].map((exercise, i) => (
+            {localSections[section].map((exercise, i) => (
               <ExerciseCard
                 key={exercise.id}
                 exercise={exercise}
@@ -310,9 +342,14 @@ export function SessionEditorPage() {
       )}
 
       {/* Save */}
-      <div className="flex justify-end gap-3 pb-6">
-        <Button variant="secondary" onClick={() => navigate(-1)}>Abbrechen</Button>
-        <Button onClick={handleSave}>Speichern</Button>
+      <div className="flex flex-col gap-2 pb-6">
+        {saveError && (
+          <p className="text-sm text-red-500 text-right">{saveError}</p>
+        )}
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" onClick={() => navigate(-1)}>Abbrechen</Button>
+          <Button onClick={handleSave}>Speichern</Button>
+        </div>
       </div>
 
       {/* Exercise picker */}

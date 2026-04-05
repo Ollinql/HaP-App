@@ -3,7 +3,6 @@ import { useApp } from '../../store/AppContext'
 import type { Exercise, SectionKey } from '../../types'
 import { Modal } from '../ui/Modal'
 import { Badge } from '../ui/Badge'
-import { generateId } from '../../utils/idUtils'
 
 interface ExercisePickerProps {
   open: boolean
@@ -24,13 +23,8 @@ export function ExercisePicker({ open, onClose, section, onPick }: ExercisePicke
   const allTags = [...new Set(exercises.flatMap((e) => e.tags))]
 
   const handlePick = (ex: Exercise) => {
-    // Clone the exercise with a new ID so session has its own copy
-    onPick({
-      ...ex,
-      id: generateId(),
-      section,
-      createdAt: new Date().toISOString(),
-    })
+    // Keep the original archive ID — the session references by ID, no clone needed
+    onPick({ ...ex, section })
     onClose()
   }
 

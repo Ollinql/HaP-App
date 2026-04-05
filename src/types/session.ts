@@ -9,7 +9,13 @@ export interface Exercise {
   drawingElements?: string     // JSON.stringify(CanvasElement[]) — für Weiterbearbeitung
   section: SectionKey
   createdAt: string // ISO date string
-  intensityFeedback?: IntensityLevel | null // einmalige Bewertung nach dem Training
+}
+
+// Lightweight reference stored in a TrainingSession — exercises live only in the archive
+export interface SessionExerciseRef {
+  exerciseId: string
+  section: SectionKey
+  intensityFeedback?: IntensityLevel | null // einmalige Bewertung nach dem Training (pro Session)
 }
 
 export interface TrainingSession {
@@ -19,7 +25,7 @@ export interface TrainingSession {
   duration: number // minutes
   tags: string[]
   phaseId: string | null
-  sections: Record<SectionKey, Exercise[]>
+  sections: Record<SectionKey, SessionExerciseRef[]>
   intensityRating: IntensityLevel | null
   postTrainingFeedback: IntensityLevel | null
   notes: string

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { TrainingSession, Exercise, IntensityLevel } from '../../types'
+import { useMemo, useState } from 'react'
+import type { TrainingSession, Exercise, IntensityLevel, SessionExerciseRef } from '../../types'
 import { Modal } from '../ui/Modal'
 import { Badge } from '../ui/Badge'
 import { IntensityPicker } from '../ui/IntensityPicker'
@@ -18,35 +18,51 @@ const SECTION_LABELS: Record<string, string> = {
 
 type Phase = 'running' | 'feedback'
 
+type ResolvedExercise = Exercise & { intensityFeedback?: IntensityLevel | null }
+
 export function TrainingRunModal({ session, onClose }: TrainingRunModalProps) {
-  const { updateSession } = useApp()
+  const { exercises, updateSession } = useApp()
   const [phase, setPhase] = useState<Phase>('running')
 
+  const exerciseMap = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
+
+  const resolveRef = (ref: SessionExerciseRef): ResolvedExercise | null => {
+    const ex = exerciseMap.get(ref.exerciseId)
+    if (!ex) return null
+    return { ...ex, intensityFeedback: ref.intensityFeedback ?? null }
+  }
+
   // Flatten all exercises in order: warmup → main → closing
-  const allExercises: Exercise[] = [
-    ...session.sections.warmup,
-    ...session.sections.main,
-    ...session.sections.closing,
-  ]
+  const allExercises: ResolvedExercise[] = (['warmup', 'main', 'closing'] as const).flatMap((sk) =>
+    session.sections[sk].flatMap((ref) => {
+      const resolved = resolveRef(ref)
+      return resolved ? [resolved] : []
+    }),
+  )
 
   // Only exercises without a rating are shown for feedback
-  const unratedExercises = allExercises.filter((ex) => ex.intensityFeedback == null)
+  const unratedRefs = (['warmup', 'main', 'closing'] as const).flatMap((sk) =>
+    session.sections[sk].filter((ref) => ref.intensityFeedback == null),
+  )
+  const unratedExercises = unratedRefs.flatMap((ref) => {
+    const resolved = resolveRef(ref)
+    return resolved ? [resolved] : []
+  })
 
   // Local feedback state: exerciseId → rating
   const [feedback, setFeedback] = useState<Record<string, IntensityLevel>>({})
 
   const handleFinish = () => {
-    if (unratedExercises.length === 0) {
+    if (unratedRefs.length === 0) {
       onClose()
       return
     }
 
-    // Apply feedback to exercises in session sections
-    const applyFeedback = (exercises: Exercise[]): Exercise[] =>
-      exercises.map((ex) => {
-        const rating = feedback[ex.id]
-        if (rating != null) return { ...ex, intensityFeedback: rating }
-        return ex
+    // Write feedback back to the session's refs
+    const applyFeedback = (refs: SessionExerciseRef[]): SessionExerciseRef[] =>
+      refs.map((ref) => {
+        const rating = feedback[ref.exerciseId]
+        return rating != null ? { ...ref, intensityFeedback: rating } : ref
       })
 
     const updatedSession: TrainingSession = {
@@ -85,15 +101,18 @@ export function TrainingRunModal({ session, onClose }: TrainingRunModalProps) {
           {/* Exercise list */}
           <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-3">
             {(['warmup', 'main', 'closing'] as const).map((sectionKey) => {
-              const exercises = session.sections[sectionKey]
-              if (exercises.length === 0) return null
+              const sectionExercises = session.sections[sectionKey].flatMap((ref) => {
+                const resolved = resolveRef(ref)
+                return resolved ? [resolved] : []
+              })
+              if (sectionExercises.length === 0) return null
               return (
                 <div key={sectionKey}>
                   <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
                     {SECTION_LABELS[sectionKey]}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
-                    {exercises.map((ex) => (
+                    {sectionExercises.map((ex) => (
                       <div
                         key={ex.id}
                         className="bg-surface border border-border rounded-lg overflow-hidden"
