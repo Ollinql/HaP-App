@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useApp } from '../../store/AppContext'
 import type { TrainingSession } from '../../types'
 import { toISODate, getDayKey } from '../../utils/dateUtils'
@@ -9,7 +10,7 @@ interface DayCellProps {
   isSelected?: boolean
 }
 
-export function DayCell({ date, onSelect, isSelected }: DayCellProps) {
+export const DayCell = memo(function DayCell({ date, onSelect, isSelected }: DayCellProps) {
   const { sessions, settings } = useApp()
 
   const dateStr = toISODate(date)
@@ -22,17 +23,13 @@ export function DayCell({ date, onSelect, isSelected }: DayCellProps) {
   const isToday = dateStr === todayStr
   const isPast = dateStr < todayStr
 
-  const handleClick = () => {
-    onSelect(dateStr)
-  }
-
   const dayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
   const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1
 
   return (
     <button
       type="button"
-      onClick={handleClick}
+      onClick={() => onSelect(dateStr)}
       className={[
         'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-left w-full',
         isToday
@@ -50,12 +47,10 @@ export function DayCell({ date, onSelect, isSelected }: DayCellProps) {
         {date.getDate()}
       </span>
 
-      {/* Training day indicator */}
       {isTrainingDay && !session && (
         <span className="w-1.5 h-1.5 rounded-full bg-border" title="Trainingstag" />
       )}
 
-      {/* Session indicator */}
       {session && (
         <div className="flex flex-col items-center gap-1 w-full">
           {session.intensityRating && (
@@ -74,4 +69,4 @@ export function DayCell({ date, onSelect, isSelected }: DayCellProps) {
       )}
     </button>
   )
-}
+})

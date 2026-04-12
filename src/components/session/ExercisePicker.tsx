@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useApp } from '../../store/AppContext'
 import type { Exercise, SectionKey } from '../../types'
 import { Modal } from '../ui/Modal'
@@ -12,18 +12,17 @@ interface ExercisePickerProps {
 }
 
 export function ExercisePicker({ open, onClose, section, onPick }: ExercisePickerProps) {
-  const { exercises, settings } = useApp()
+  const { exercises } = useApp()
   const [filterTag, setFilterTag] = useState('')
 
-  const filtered = exercises.filter((e) => {
-    if (!filterTag) return true
-    return e.tags.includes(filterTag)
-  })
+  const allTags = useMemo(() => [...new Set(exercises.flatMap((e) => e.tags))], [exercises])
 
-  const allTags = [...new Set(exercises.flatMap((e) => e.tags))]
+  const filtered = useMemo(
+    () => exercises.filter((e) => !filterTag || e.tags.includes(filterTag)),
+    [exercises, filterTag],
+  )
 
   const handlePick = (ex: Exercise) => {
-    // Keep the original archive ID — the session references by ID, no clone needed
     onPick({ ...ex, section })
     onClose()
   }
@@ -31,7 +30,6 @@ export function ExercisePicker({ open, onClose, section, onPick }: ExercisePicke
   return (
     <Modal open={open} onClose={onClose} title="Übung aus Archiv wählen" size="lg">
       <div className="p-4 space-y-3">
-        {/* Tag filter */}
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setFilterTag('')}
@@ -91,13 +89,6 @@ export function ExercisePicker({ open, onClose, section, onPick }: ExercisePicke
               </button>
             ))}
           </div>
-        )}
-
-        {/* Use global tags for the exercise picker context */}
-        {settings.globalTags.length === 0 && exercises.length === 0 && (
-          <p className="text-xs text-muted text-center">
-            Erstelle zuerst Übungen im Übungsarchiv.
-          </p>
         )}
       </div>
     </Modal>

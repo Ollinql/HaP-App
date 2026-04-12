@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import type { Exercise } from '../../types'
 import { Badge } from '../ui/Badge'
 import { Modal } from '../ui/Modal'
@@ -10,7 +10,7 @@ interface ExerciseCardProps {
   onRemove: () => void
 }
 
-export function ExerciseCard({ exercise, onUpdate, onRemove }: ExerciseCardProps) {
+export const ExerciseCard = memo(function ExerciseCard({ exercise, onUpdate, onRemove }: ExerciseCardProps) {
   const [canvasOpen, setCanvasOpen] = useState(false)
 
   const handleSaveDrawing = (pngDataUrl: string, elementsJson: string) => {
@@ -84,4 +84,4 @@ export function ExerciseCard({ exercise, onUpdate, onRemove }: ExerciseCardProps
       </Modal>
     </div>
   )
-}
+})

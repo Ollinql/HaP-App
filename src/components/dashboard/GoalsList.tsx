@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useApp } from '../../store/AppContext'
 
-// Deterministic color from tag string
 const TAG_COLORS: Record<string, string> = {
   Technik: 'bg-teal-900/60 text-teal-300 border-teal-700',
   Taktik: 'bg-blue-900/60 text-blue-300 border-blue-700',
@@ -29,7 +28,10 @@ const DEFAULT_TAGS = ['Technik', 'Taktik', 'Fitness']
 
 export function GoalsList() {
   const { settings, addGoal, removeGoal, toggleGoal } = useApp()
-  const availableTags = [...DEFAULT_TAGS, ...settings.globalTags.filter((t) => !DEFAULT_TAGS.includes(t))]
+  const availableTags = useMemo(
+    () => [...DEFAULT_TAGS, ...settings.globalTags.filter((t) => !DEFAULT_TAGS.includes(t))],
+    [settings.globalTags],
+  )
   const [showAdd, setShowAdd] = useState(false)
   const [newText, setNewText] = useState('')
   const [newTag, setNewTag] = useState('')
@@ -40,9 +42,11 @@ export function GoalsList() {
   }, [showAdd])
 
   const goals = settings.trainingGoals
-  const open = goals.filter((g) => !g.completed)
-  const done = goals.filter((g) => g.completed)
-  const sorted = [...open, ...done]
+  const sorted = useMemo(() => {
+    const open = goals.filter((g) => !g.completed)
+    const done = goals.filter((g) => g.completed)
+    return [...open, ...done]
+  }, [goals])
 
   function handleAdd() {
     const text = newText.trim()
@@ -70,7 +74,7 @@ export function GoalsList() {
           <h3 className="text-sm font-semibold text-primary">Trainingsziele</h3>
           {goals.length > 0 && (
             <span className="text-xs text-muted tabular-nums">
-              {done.length}/{goals.length}
+              {sorted.filter((g) => g.completed).length}/{goals.length}
             </span>
           )}
         </div>
@@ -82,7 +86,6 @@ export function GoalsList() {
         </button>
       </div>
 
-      {/* Goal list */}
       {sorted.length === 0 && !showAdd && (
         <p className="text-xs text-muted py-1">Noch keine Ziele. Klicke auf <span className="text-accent">+ Neu</span> um zu starten.</p>
       )}
@@ -94,7 +97,6 @@ export function GoalsList() {
               key={goal.id}
               className="group flex items-center gap-2.5 py-1.5 px-2 rounded-lg hover:bg-elevated transition-colors"
             >
-              {/* Checkbox */}
               <button
                 onClick={() => toggleGoal(goal.id)}
                 aria-label={goal.completed ? 'Als offen markieren' : 'Als erledigt markieren'}
@@ -111,7 +113,6 @@ export function GoalsList() {
                 )}
               </button>
 
-              {/* Text */}
               <span
                 className={`flex-1 text-sm min-w-0 truncate transition-colors ${
                   goal.completed ? 'line-through text-muted/50' : 'text-primary'
@@ -120,7 +121,6 @@ export function GoalsList() {
                 {goal.text}
               </span>
 
-              {/* Tag badge */}
               {goal.tag && (
                 <span
                   className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border ${tagColor(goal.tag)}`}
@@ -129,7 +129,6 @@ export function GoalsList() {
                 </span>
               )}
 
-              {/* Delete */}
               <button
                 onClick={() => removeGoal(goal.id)}
                 aria-label={`Ziel "${goal.text}" löschen`}
@@ -142,7 +141,6 @@ export function GoalsList() {
         </ul>
       )}
 
-      {/* Inline add row */}
       {showAdd && (
         <div className="mt-2 flex gap-2 items-center">
           <input

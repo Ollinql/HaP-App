@@ -1,37 +1,10 @@
-import { useApp } from '../../store/AppContext'
-import { toISODate } from '../../utils/dateUtils'
+import { useSeasonLookup } from '../../hooks/useSeasonLookup'
 import { PHASE_COLORS } from '../../utils/colorUtils'
 
 export function MicrocycleBanner() {
-  const { seasons } = useApp()
-  const today = toISODate(new Date())
+  const { activePhase, activeMicrocycle } = useSeasonLookup()
 
-  // Find active microcycle
-  let activeMc = null
-  let activePhase = null
-
-  outer: for (const season of seasons) {
-    for (const phase of season.phases) {
-      if (today >= phase.startDate && today <= phase.endDate) {
-        for (const mc of phase.microcycles) {
-          const mcEnd = new Date(mc.startDate)
-          mcEnd.setDate(mcEnd.getDate() + 6)
-          if (today >= mc.startDate && today <= toISODate(mcEnd)) {
-            activeMc = mc
-            activePhase = phase
-            break outer
-          }
-        }
-        // Phase matched but no microcycle matched — still show phase
-        if (!activeMc) {
-          activePhase = phase
-          break outer
-        }
-      }
-    }
-  }
-
-  if (!activePhase && !activeMc) return null
+  if (!activePhase && !activeMicrocycle) return null
 
   return (
     <div className="flex items-center gap-3 px-4 py-2.5 bg-surface border border-border rounded-xl">
@@ -40,10 +13,10 @@ export function MicrocycleBanner() {
           {activePhase.type}
         </span>
       )}
-      {activeMc ? (
+      {activeMicrocycle ? (
         <span className="text-sm text-primary">
-          <span className="text-muted">KW {activeMc.weekNumber} · </span>
-          {activeMc.focusLabel}
+          <span className="text-muted">KW {activeMicrocycle.weekNumber} · </span>
+          {activeMicrocycle.focusLabel}
         </span>
       ) : (
         activePhase && (
