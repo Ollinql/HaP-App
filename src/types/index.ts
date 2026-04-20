@@ -1,3 +1,4 @@
 export type { PhaseType, Microcycle, Phase, Season } from './season'
 export type { SectionKey, IntensityLevel, Exercise, SessionExerciseRef, TrainingSession } from './session'
 export type { DayKey, DayConfig, Settings } from './settings'
+export type { GymExercise, GymSet, GymWorkoutExercise, GymWorkout, GymTemplateExercise, GymTemplate } from './gym'

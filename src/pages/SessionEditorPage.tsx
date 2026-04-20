@@ -46,7 +46,7 @@ export function SessionEditorPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { sessions, exercises, settings, seasons, addSession, updateSession, deleteSession, addExercise } = useApp()
+  const { sessions, exercises, settings, seasons, addSession, updateSession, deleteSession, addExercise, updateExercise } = useApp()
 
   const isNew = id === undefined
   const dateParam = searchParams.get('date') ?? toISODate(new Date())
@@ -87,7 +87,8 @@ export function SessionEditorPage() {
       ...prev,
       [section]: prev[section].map((e, i) => (i === index ? exercise : e)),
     }))
-  }, [])
+    updateExercise(exercise)
+  }, [updateExercise])
 
   const removeSectionExercise = useCallback((section: SectionKey, index: number) => {
     setLocalSections((prev) => ({
@@ -106,7 +107,8 @@ export function SessionEditorPage() {
       createdAt: new Date().toISOString(),
     }
     setLocalSections((prev) => ({ ...prev, [section]: [...prev[section], ex] }))
-  }, [])
+    addExercise(ex)
+  }, [addExercise])
 
   const openPicker = useCallback((section: SectionKey) => {
     setPickerState({ open: true, section })
@@ -120,6 +122,15 @@ export function SessionEditorPage() {
     }))
   }, [pickerState.section])
 
+  const reorderSectionExercises = useCallback((section: SectionKey, from: number, to: number) => {
+    setLocalSections((prev) => {
+      const arr = [...prev[section]]
+      const [moved] = arr.splice(from, 1)
+      arr.splice(to, 0, moved)
+      return { ...prev, [section]: arr }
+    })
+  }, [])
+
   const handleSave = () => {
     const allLocal = [...localSections.warmup, ...localSections.main, ...localSections.closing]
     const hasUntitled = allLocal.some((ex) => !ex.title.trim())
@@ -128,7 +139,7 @@ export function SessionEditorPage() {
       return
     }
     setSaveError(null)
-    allLocal.forEach((ex) => addExercise(ex))
+    // exercises are already saved to archive on creation/update
 
     const toRefs = (section: SectionKey): SessionExerciseRef[] =>
       localSections[section].map((ex) => ({ exerciseId: ex.id, section }))
@@ -183,6 +194,7 @@ export function SessionEditorPage() {
         onRemove={removeSectionExercise}
         onAddBlank={addBlankExercise}
         onPickFromArchive={openPicker}
+        onReorder={reorderSectionExercises}
       />
 
       {/* Post-Training Feedback */}

@@ -4,9 +4,10 @@ import { MicrocycleBanner } from '../components/dashboard/MicrocycleBanner'
 import { GoalsList } from '../components/dashboard/GoalsList'
 import { DayDetailPanel } from '../components/dashboard/DayDetailPanel'
 import { PageBackground } from '../components/ui/PageBackground'
+import { toISODate } from '../utils/dateUtils'
 
 export function DashboardPage() {
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(toISODate(new Date()))
 
   const handleDaySelect = (dateStr: string) => {
     setSelectedDate((prev) => (prev === dateStr ? null : dateStr))

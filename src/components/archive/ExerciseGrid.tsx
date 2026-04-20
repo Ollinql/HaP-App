@@ -36,7 +36,7 @@ export function ExerciseGrid({ filtered, totalCount, onPreview, onEdit, onDelete
         >
           <button
             type="button"
-            className="w-full aspect-[3/4] bg-[#1a2e1a] relative"
+            className="w-full aspect-[3/4] bg-elevated relative"
             onClick={() => onPreview(ex)}
           >
             {ex.drawingData ? (

@@ -3,7 +3,8 @@ import { SeasonsProvider } from './SeasonsContext'
 import { SessionsProvider, useSessions } from './SessionsContext'
 import { ExercisesProvider, useExercises, deduplicateExercises } from './ExercisesContext'
 import { SettingsProvider } from './SettingsContext'
-import type { Exercise, SessionExerciseRef, SectionKey } from '../types/session'
+import { GymProvider } from './GymContext'
+import type { Exercise, SessionExerciseRef, SectionKey, IntensityLevel } from '../types/session'
 import type { TrainingSession } from '../types/session'
 
 // Detects old-format sessions where sections still contain full Exercise objects
@@ -37,7 +38,7 @@ function SessionFormatMigration() {
         newSections[sectionKey] = items.map((item) => {
           const raw = item as Record<string, unknown>
           if ('exerciseId' in raw) return raw as unknown as SessionExerciseRef
-          const ex = raw as unknown as Exercise & { intensityFeedback?: number | null }
+          const ex = raw as unknown as Exercise & { intensityFeedback?: IntensityLevel | null }
           const { intensityFeedback, ...archiveEx } = ex
           extractedExercises.push(archiveEx as Exercise)
           return {
@@ -68,14 +69,16 @@ function SessionFormatMigration() {
 export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <SettingsProvider>
-      <SeasonsProvider>
-        <ExercisesProvider>
-          <SessionsProvider>
-            <SessionFormatMigration />
-            {children}
-          </SessionsProvider>
-        </ExercisesProvider>
-      </SeasonsProvider>
+      <GymProvider>
+        <SeasonsProvider>
+          <ExercisesProvider>
+            <SessionsProvider>
+              <SessionFormatMigration />
+              {children}
+            </SessionsProvider>
+          </ExercisesProvider>
+        </SeasonsProvider>
+      </GymProvider>
     </SettingsProvider>
   )
 }

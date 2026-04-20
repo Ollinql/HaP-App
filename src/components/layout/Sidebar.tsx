@@ -8,6 +8,7 @@ interface SidebarProps {
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: '⊞', end: true },
   { to: '/seasons', label: 'Saisonplanung', icon: '📅' },
+  { to: '/gym', label: 'Gym Training', icon: '🏋' },
   { to: '/exercises', label: 'Übungsarchiv', icon: '🗂' },
   { to: '/settings', label: 'Einstellungen', icon: '⚙' },
 ]

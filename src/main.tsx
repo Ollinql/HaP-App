@@ -10,6 +10,10 @@ import { SessionEditorPage } from './pages/SessionEditorPage'
 import { ExerciseArchivePage } from './pages/ExerciseArchivePage'
 import { FeedbackPage } from './pages/FeedbackPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { GymDashboardPage } from './pages/GymDashboardPage'
+import { GymWorkoutPage } from './pages/GymWorkoutPage'
+import { GymTemplatesPage } from './pages/GymTemplatesPage'
+import { GymTemplateEditorPage } from './pages/GymTemplateEditorPage'
 
 const router = createBrowserRouter([
   {
@@ -23,6 +27,12 @@ const router = createBrowserRouter([
       { path: 'exercises', element: <ExerciseArchivePage /> },
       { path: 'feedback/:id', element: <FeedbackPage /> },
       { path: 'settings', element: <SettingsPage /> },
+      { path: 'gym', element: <GymDashboardPage /> },
+      { path: 'gym/workout/new', element: <GymWorkoutPage /> },
+      { path: 'gym/workout/:id', element: <GymWorkoutPage /> },
+      { path: 'gym/templates', element: <GymTemplatesPage /> },
+      { path: 'gym/templates/new', element: <GymTemplateEditorPage /> },
+      { path: 'gym/templates/:id', element: <GymTemplateEditorPage /> },
     ],
   },
 ], { basename: '/HaP-App' })
