@@ -28,7 +28,7 @@ export function SettingsPage() {
                     type="checkbox"
                     checked={config.enabled}
                     onChange={(e) => setTrainingDay(day, { enabled: e.target.checked })}
-                    className="w-4 h-4 rounded accent-[#4f7cf7]"
+                    className="w-4 h-4 rounded accent-[var(--color-accent)]"
                   />
                   <span className="text-sm text-primary">{DAY_LABELS_FULL[day]}</span>
                 </label>

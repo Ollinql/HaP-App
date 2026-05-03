@@ -7,9 +7,9 @@ export function MicrocycleBanner() {
   if (!activePhase && !activeMicrocycle) return null
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 bg-surface border border-border rounded-xl">
+    <div className="flex items-center gap-3 px-4 py-3 bg-surface border border-border rounded-xl shadow-sm">
       {activePhase && (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${PHASE_COLORS[activePhase.type]}`}>
+        <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${PHASE_COLORS[activePhase.type]}`}>
           {activePhase.type}
         </span>
       )}

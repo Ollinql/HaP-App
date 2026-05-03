@@ -31,19 +31,23 @@ export const DayCell = memo(function DayCell({ date, onSelect, isSelected }: Day
       type="button"
       onClick={() => onSelect(dateStr)}
       className={[
-        'flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all text-left w-full',
+        'flex flex-col items-center gap-1 p-1.5 sm:p-2.5 rounded-xl border transition-all duration-150 w-full min-h-[64px] sm:min-h-[76px]',
         isToday
-          ? 'border-accent bg-accent/10 ring-1 ring-accent'
+          ? 'border-accent bg-accent/10 ring-1 ring-accent/60'
           : isSelected
-          ? 'border-accent/70 bg-elevated ring-1 ring-accent/50'
-          : 'border-border hover:border-accent/50 hover:bg-elevated',
-        !isTrainingDay && !session ? 'opacity-50' : '',
+          ? 'border-accent/60 bg-elevated ring-1 ring-accent/40'
+          : 'border-border hover:border-accent/40 hover:bg-elevated/70',
+        !isTrainingDay && !session ? 'opacity-40' : '',
       ].join(' ')}
     >
-      <span className={`text-xs font-medium ${isToday ? 'text-accent' : 'text-muted'}`}>
+      <span
+        className={`text-[10px] sm:text-xs font-medium ${isToday ? 'text-accent' : 'text-muted'}`}
+      >
         {dayLabels[dayIndex]}
       </span>
-      <span className={`text-base font-bold ${isToday ? 'text-accent' : 'text-primary'}`}>
+      <span
+        className={`text-sm sm:text-base font-bold ${isToday ? 'text-accent' : 'text-primary'}`}
+      >
         {date.getDate()}
       </span>
 
@@ -52,18 +56,18 @@ export const DayCell = memo(function DayCell({ date, onSelect, isSelected }: Day
       )}
 
       {session && (
-        <div className="flex flex-col items-center gap-1 w-full">
+        <div className="flex flex-col items-center gap-0.5 w-full">
           {session.intensityRating && (
             <span
-              className={`w-2.5 h-2.5 rounded-full ${getIntensityColor(session.intensityRating)}`}
+              className={`w-2 h-2 rounded-full ${getIntensityColor(session.intensityRating)}`}
               title={`Intensität ${session.intensityRating}`}
             />
           )}
-          <span className="text-[10px] text-primary text-center line-clamp-2 leading-tight">
+          <span className="hidden sm:block text-[9px] text-primary text-center line-clamp-2 leading-tight w-full px-0.5">
             {session.title || 'Training'}
           </span>
           {isPast && !session.postTrainingFeedback && (
-            <span className="text-[9px] text-orange-400">● Feedback</span>
+            <span className="hidden sm:block text-[8px] text-orange-400 font-medium">● FB</span>
           )}
         </div>
       )}

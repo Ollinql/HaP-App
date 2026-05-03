@@ -11,8 +11,8 @@ const LEVELS: IntensityLevel[] = [1, 2, 3, 4, 5]
 
 export function IntensityPicker({ value, onChange, label }: IntensityPickerProps) {
   return (
-    <div className="space-y-1.5">
-      {label && <span className="text-sm text-muted">{label}</span>}
+    <div className="space-y-2">
+      {label && <span className="text-xs text-muted font-medium">{label}</span>}
       <div className="flex items-center gap-2">
         {LEVELS.map((level) => (
           <button
@@ -26,13 +26,16 @@ export function IntensityPicker({ value, onChange, label }: IntensityPickerProps
               'transition-all duration-150',
               INTENSITY_COLORS[level],
               value === level
-                ? 'ring-2 ring-white ring-offset-2 ring-offset-base scale-110'
-                : 'opacity-60 hover:opacity-100 hover:scale-105',
+                ? 'ring-2 ring-white ring-offset-2 ring-offset-base scale-110 shadow-md'
+                : 'opacity-50 hover:opacity-90 hover:scale-105',
             ].join(' ')}
           >
             {level}
           </button>
         ))}
+        {value && (
+          <span className="text-xs text-secondary ml-1">{INTENSITY_LABELS[value]}</span>
+        )}
       </div>
     </div>
   )

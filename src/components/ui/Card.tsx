@@ -1,19 +1,40 @@
 import { HTMLAttributes, ReactNode } from 'react'
 
+type CardVariant = 'default' | 'elevated' | 'ghost'
+
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
   padding?: boolean
+  variant?: CardVariant
+  shadow?: boolean
 }
 
-export function Card({ children, padding = true, className = '', ...props }: CardProps) {
+const VARIANTS: Record<CardVariant, string> = {
+  default: 'bg-surface border border-border',
+  elevated: 'bg-elevated border border-border',
+  ghost: 'bg-transparent border border-border/50',
+}
+
+export function Card({
+  children,
+  padding = true,
+  variant = 'default',
+  shadow = false,
+  className = '',
+  ...props
+}: CardProps) {
   return (
     <div
       {...props}
       className={[
-        'bg-surface border border-border rounded-xl',
+        'rounded-xl',
+        VARIANTS[variant],
         padding ? 'p-4' : '',
+        shadow ? 'shadow-md' : '',
         className,
-      ].join(' ')}
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {children}
     </div>

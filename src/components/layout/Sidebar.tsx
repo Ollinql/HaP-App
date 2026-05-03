@@ -19,7 +19,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/60 z-20 md:hidden"
+          className="fixed inset-0 bg-black/60 z-20 md:hidden backdrop-blur-sm"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -28,30 +28,31 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       <aside
         className={[
           'fixed top-0 left-0 h-full w-56 bg-surface border-r border-border z-30',
-          'flex flex-col transition-transform duration-200',
+          'flex flex-col transition-transform duration-200 ease-in-out',
           'md:translate-x-0 md:static md:z-auto',
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}
       >
         {/* Logo */}
-        <div className="flex items-center gap-2 px-4 py-5 border-b border-border">
-          <span className="text-2xl">🤾</span>
-          <div>
-            <div className="text-sm font-bold text-primary leading-tight">Handball</div>
-            <div className="text-xs text-muted leading-tight">Training Planner</div>
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-border shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-accent/15 border border-accent/25 flex items-center justify-center text-lg shrink-0">
+            🤾
           </div>
-          {/* Close button on mobile */}
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-primary leading-tight">Handball</div>
+            <div className="text-[11px] text-muted leading-tight">Training Planner</div>
+          </div>
           <button
             onClick={onClose}
-            className="ml-auto text-muted hover:text-primary md:hidden"
+            className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-elevated transition-colors md:hidden shrink-0"
             aria-label="Menü schließen"
           >
             ✕
           </button>
         </div>
 
-        {/* Nav links */}
-        <nav className="flex-1 overflow-y-auto py-3">
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-2">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
@@ -60,21 +61,30 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               onClick={() => onClose()}
               className={({ isActive }) =>
                 [
-                  'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                  'flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 my-0.5',
                   isActive
-                    ? 'bg-accent/20 text-accent font-medium border-r-2 border-accent'
-                    : 'text-muted hover:text-primary hover:bg-elevated',
+                    ? 'bg-accent/12 text-accent font-semibold'
+                    : 'text-secondary hover:text-primary hover:bg-elevated',
                 ].join(' ')
               }
             >
-              <span className="text-base w-5 text-center">{item.icon}</span>
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  <span className="text-base w-5 text-center shrink-0 opacity-80">
+                    {item.icon}
+                  </span>
+                  <span className={isActive ? 'text-accent' : ''}>{item.label}</span>
+                  {isActive && (
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                  )}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
 
-        <div className="px-4 py-3 border-t border-border">
-          <p className="text-xs text-muted">v1.0 · localStorage</p>
+        <div className="px-4 py-3 border-t border-border shrink-0">
+          <p className="text-[11px] text-muted">v1.0 · Offline · localStorage</p>
         </div>
       </aside>
     </>

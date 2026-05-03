@@ -38,17 +38,17 @@ export function Modal({ open, onClose, title, children, size = 'md', fullscreen 
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/75 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose()
       }}
     >
       <div
         className={[
-          'bg-elevated border border-border shadow-2xl w-full flex flex-col',
+          'bg-elevated border border-border shadow-modal w-full flex flex-col',
           fullscreen
             ? 'h-[100dvh] max-h-none rounded-none'
-            : `rounded-xl max-h-[90vh] ${SIZES[size]}`,
+            : `rounded-t-2xl sm:rounded-xl max-h-[92dvh] sm:max-h-[88vh] ${SIZES[size]}`,
         ].join(' ')}
         role="dialog"
         aria-modal="true"
@@ -56,10 +56,10 @@ export function Modal({ open, onClose, title, children, size = 'md', fullscreen 
       >
         {title && (
           <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-            <h2 className="text-base font-semibold text-primary">{title}</h2>
+            <h2 className="text-sm font-semibold text-primary">{title}</h2>
             <button
               onClick={onClose}
-              className="text-muted hover:text-primary text-lg leading-none"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-surface transition-colors text-base leading-none"
               aria-label="Schließen"
             >
               ✕

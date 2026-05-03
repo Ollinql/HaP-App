@@ -17,18 +17,22 @@ export function DashboardPage() {
     <div className="relative min-h-full">
       <PageBackground />
 
-      {/* Content */}
-      <div className="relative z-10 p-4 md:p-6 space-y-5 max-w-3xl mx-auto">
+      <div className="relative z-10 p-4 md:p-6 space-y-4 max-w-2xl mx-auto">
         <div>
           <h1 className="text-xl font-bold text-primary">Dashboard</h1>
-          <p className="text-sm text-muted">Aktuelle Trainingswoche</p>
+          <p className="text-xs text-muted mt-0.5">Aktuelle Trainingswoche</p>
         </div>
 
         <MicrocycleBanner />
-        <WeekCalendar onDaySelect={handleDaySelect} selectedDate={selectedDate} />
+
+        <div className="bg-surface border border-border rounded-xl p-3 sm:p-4 shadow-sm">
+          <WeekCalendar onDaySelect={handleDaySelect} selectedDate={selectedDate} />
+        </div>
+
         {selectedDate && (
           <DayDetailPanel date={selectedDate} onClose={() => setSelectedDate(null)} />
         )}
+
         <GoalsList />
       </div>
     </div>

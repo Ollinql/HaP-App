@@ -36,10 +36,10 @@ export function TagInput({ tags, onChange, suggestions = [], placeholder = 'Tag 
   )
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5 p-2 bg-input border border-border rounded-lg min-h-[2.5rem]">
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-1.5 p-2.5 bg-input border border-border rounded-lg min-h-[2.75rem] focus-within:border-accent transition-colors">
         {tags.map((tag) => (
-          <Badge key={tag} label={tag} onRemove={() => removeTag(tag)} />
+          <Badge key={tag} label={tag} onRemove={() => removeTag(tag)} color="accent" />
         ))}
         <input
           type="text"
@@ -52,12 +52,12 @@ export function TagInput({ tags, onChange, suggestions = [], placeholder = 'Tag 
         />
       </div>
       {inputValue && filtered.length > 0 && (
-        <div className="bg-elevated border border-border rounded-lg overflow-hidden">
+        <div className="bg-elevated border border-border rounded-lg overflow-hidden shadow-md">
           {filtered.slice(0, 6).map((s) => (
             <button
               key={s}
               onMouseDown={(e) => { e.preventDefault(); addTag(s) }}
-              className="w-full px-3 py-1.5 text-left text-sm text-muted hover:text-primary hover:bg-input"
+              className="w-full px-3 py-2 text-left text-sm text-secondary hover:text-primary hover:bg-input transition-colors"
             >
               {s}
             </button>
