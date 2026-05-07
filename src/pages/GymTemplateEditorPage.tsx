@@ -57,7 +57,7 @@ export function GymTemplateEditorPage() {
       ...prev,
       exercises: [
         ...prev.exercises,
-        { exerciseId, targetSets: 3, targetReps: 10, order: prev.exercises.length },
+        { exerciseId, targetSets: 3, targetReps: 10, order: prev.exercises.length, restSeconds: 120 },
       ],
     }))
   }
@@ -115,7 +115,7 @@ export function GymTemplateEditorPage() {
                 </div>
                 <button onClick={() => removeExercise(i)} className="text-muted hover:text-red-400 text-lg leading-none">×</button>
               </div>
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-3 items-center flex-wrap">
                 <label className="text-xs text-muted">Sätze</label>
                 <input
                   type="number"
@@ -130,6 +130,15 @@ export function GymTemplateEditorPage() {
                   min={1}
                   value={te.targetReps}
                   onChange={(e) => updateExercise(i, { ...te, targetReps: Number(e.target.value) })}
+                  className="w-16 bg-input border border-border rounded px-2 py-1 text-sm text-primary text-center outline-none focus:border-accent"
+                />
+                <label className="text-xs text-muted">Pause (s)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={15}
+                  value={te.restSeconds ?? 120}
+                  onChange={(e) => updateExercise(i, { ...te, restSeconds: Number(e.target.value) })}
                   className="w-16 bg-input border border-border rounded px-2 py-1 text-sm text-primary text-center outline-none focus:border-accent"
                 />
               </div>

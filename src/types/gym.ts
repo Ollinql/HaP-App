@@ -10,6 +10,7 @@ export interface GymExercise {
 export interface GymSet {
   reps: number
   weight: number // 0 for bodyweight
+  completed?: boolean
 }
 
 export interface GymWorkoutExercise {
@@ -17,6 +18,7 @@ export interface GymWorkoutExercise {
   sets: GymSet[]
   order: number
   notes?: string
+  restSeconds?: number
 }
 
 export interface GymWorkout {
@@ -37,6 +39,7 @@ export interface GymTemplateExercise {
   targetSets: number
   targetReps: number
   order: number
+  restSeconds: number
 }
 
 export interface GymTemplate {
