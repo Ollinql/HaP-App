@@ -31,22 +31,27 @@ export const DayCell = memo(function DayCell({ date, onSelect, isSelected }: Day
       type="button"
       onClick={() => onSelect(dateStr)}
       className={[
-        'flex flex-col items-center gap-1 p-1.5 sm:p-2.5 rounded-xl border transition-all duration-150 w-full min-h-[64px] sm:min-h-[76px]',
-        isToday
-          ? 'border-accent bg-accent/10 ring-1 ring-accent/60'
-          : isSelected
-          ? 'border-accent/60 bg-elevated ring-1 ring-accent/40'
-          : 'border-border hover:border-accent/40 hover:bg-elevated/70',
-        !isTrainingDay && !session ? 'opacity-40' : '',
+        'flex flex-col items-center gap-1 p-1.5 sm:p-2 rounded-xl border transition-all duration-150 w-full min-h-[60px] sm:min-h-[72px]',
+        isSelected
+          ? 'border-accent bg-accent/10'
+          : isToday
+          ? 'border-accent/50 bg-accent/5'
+          : 'border-border hover:border-accent/30 hover:bg-elevated',
+        !isTrainingDay && !session ? 'opacity-35' : '',
       ].join(' ')}
     >
       <span
-        className={`text-[10px] sm:text-xs font-medium ${isToday ? 'text-accent' : 'text-muted'}`}
+        className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${
+          isToday || isSelected ? 'text-accent' : 'text-muted'
+        }`}
       >
         {dayLabels[dayIndex]}
       </span>
       <span
-        className={`text-sm sm:text-base font-bold ${isToday ? 'text-accent' : 'text-primary'}`}
+        className={`text-sm sm:text-base font-black ${
+          isToday || isSelected ? 'text-accent' : 'text-primary'
+        }`}
+        style={{ letterSpacing: '-0.02em' }}
       >
         {date.getDate()}
       </span>
@@ -63,11 +68,13 @@ export const DayCell = memo(function DayCell({ date, onSelect, isSelected }: Day
               title={`Intensität ${session.intensityRating}`}
             />
           )}
-          <span className="hidden sm:block text-[9px] text-primary text-center line-clamp-2 leading-tight w-full px-0.5">
+          <span className="hidden sm:block text-[9px] text-secondary text-center line-clamp-2 leading-tight w-full px-0.5 font-medium">
             {session.title || 'Training'}
           </span>
           {isPast && !session.postTrainingFeedback && (
-            <span className="hidden sm:block text-[8px] text-orange-400 font-medium">● FB</span>
+            <span className="hidden sm:block text-[8px] text-orange-400 font-bold tracking-wider">
+              FB
+            </span>
           )}
         </div>
       )}

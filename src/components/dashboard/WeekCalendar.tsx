@@ -18,14 +18,14 @@ export function WeekCalendar({ onDaySelect, selectedDate }: WeekCalendarProps) {
         <button
           type="button"
           onClick={() => setReferenceDate((d) => offsetWeek(d, -1))}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-elevated transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-elevated transition-colors font-bold text-lg"
           aria-label="Vorherige Woche"
         >
           ‹
         </button>
         <div className="text-center">
-          <span className="text-sm font-semibold text-primary">KW {weekNum}</span>
-          <p className="text-xs text-muted mt-0.5">
+          <span className="text-sm font-black text-primary tracking-tight">KW {weekNum}</span>
+          <p className="text-[11px] text-muted mt-0.5 font-medium">
             {days[0].toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })} –{' '}
             {days[6].toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })}
           </p>
@@ -33,14 +33,14 @@ export function WeekCalendar({ onDaySelect, selectedDate }: WeekCalendarProps) {
         <button
           type="button"
           onClick={() => setReferenceDate((d) => offsetWeek(d, 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-elevated transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-elevated transition-colors font-bold text-lg"
           aria-label="Nächste Woche"
         >
           ›
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+      <div className="grid grid-cols-7 gap-1">
         {days.map((day) => {
           const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
           return (

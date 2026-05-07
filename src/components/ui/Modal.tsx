@@ -38,7 +38,7 @@ export function Modal({ open, onClose, title, children, size = 'md', fullscreen 
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/75 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose()
       }}
@@ -56,7 +56,7 @@ export function Modal({ open, onClose, title, children, size = 'md', fullscreen 
       >
         {title && (
           <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-            <h2 className="text-sm font-semibold text-primary">{title}</h2>
+            <h2 className="text-sm font-bold tracking-tight text-primary">{title}</h2>
             <button
               onClick={onClose}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-muted hover:text-primary hover:bg-surface transition-colors text-base leading-none"

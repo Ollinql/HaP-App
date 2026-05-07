@@ -9,17 +9,17 @@ interface BadgeProps {
 
 const COLORS: Record<BadgeColor, string> = {
   default: 'bg-elevated border-border text-secondary',
-  accent: 'bg-accent/15 border-accent/30 text-accent',
-  green: 'bg-green-900/40 border-green-700/50 text-green-300',
-  orange: 'bg-orange-900/40 border-orange-700/50 text-orange-300',
-  red: 'bg-red-900/40 border-red-700/50 text-red-300',
+  accent:  'bg-accent/12 border-accent/25 text-accent',
+  green:   'bg-green-950/60 border-green-800/40 text-green-400',
+  orange:  'bg-orange-950/60 border-orange-800/40 text-orange-400',
+  red:     'bg-red-950/60 border-red-800/40 text-red-400',
 }
 
 export function Badge({ label, onRemove, className = '', color = 'default' }: BadgeProps) {
   return (
     <span
       className={[
-        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border',
+        'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold border tracking-wide',
         COLORS[color],
         className,
       ].join(' ')}

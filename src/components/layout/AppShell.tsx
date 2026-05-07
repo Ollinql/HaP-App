@@ -1,47 +1,61 @@
 import { useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, NavLink } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 
-const PAGE_TITLES: Record<string, string> = {
-  '/': 'Dashboard',
-  '/seasons': 'Saisonplanung',
-  '/gym': 'Gym Training',
-  '/exercises': 'Übungsarchiv',
-  '/settings': 'Einstellungen',
-  '/feedback': 'Feedback',
-}
+const NAV_ITEMS = [
+  { to: '/', label: 'Dashboard', icon: '⊞', end: true },
+  { to: '/seasons', label: 'Saison', icon: '📅' },
+  { to: '/gym', label: 'Gym', icon: '🏋' },
+  { to: '/exercises', label: 'Archiv', icon: '🗂' },
+  { to: '/settings', label: 'Mehr', icon: '⚙' },
+]
 
 export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const location = useLocation()
-
-  const title = Object.entries(PAGE_TITLES).find(([path]) =>
-    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path),
-  )?.[1] ?? 'Handball Training Planner'
 
   return (
     <div className="flex h-full bg-base">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile topbar */}
-        <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-surface border-b border-border shrink-0">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-secondary hover:text-primary hover:bg-elevated transition-colors text-lg"
-            aria-label="Menü öffnen"
-          >
-            ☰
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🤾</span>
-            <span className="text-sm font-semibold text-primary">{title}</span>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-[68px] md:pb-0">
           <Outlet />
         </main>
+
+        {/* Mobile bottom tab bar */}
+        <nav
+          className="md:hidden fixed bottom-0 left-0 right-0 z-30"
+          style={{
+            background: 'rgba(15,15,15,0.96)',
+            backdropFilter: 'blur(20px)',
+            borderTop: '1px solid #1e1e1e',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          }}
+        >
+          <div className="flex">
+            {NAV_ITEMS.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  [
+                    'flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors duration-150',
+                    isActive ? 'text-accent' : 'text-muted',
+                  ].join(' ')
+                }
+              >
+                <span className="text-[22px] leading-none">{item.icon}</span>
+                <span
+                  className="text-[10px] font-bold tracking-wider uppercase"
+                  style={{ letterSpacing: '0.07em' }}
+                >
+                  {item.label}
+                </span>
+              </NavLink>
+            ))}
+          </div>
+        </nav>
       </div>
     </div>
   )

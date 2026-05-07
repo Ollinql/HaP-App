@@ -1,6 +1,6 @@
 import { HTMLAttributes, ReactNode } from 'react'
 
-type CardVariant = 'default' | 'elevated' | 'ghost'
+type CardVariant = 'default' | 'elevated' | 'ghost' | 'accent'
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
@@ -10,9 +10,10 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const VARIANTS: Record<CardVariant, string> = {
-  default: 'bg-surface border border-border',
+  default:  'bg-surface border border-border',
   elevated: 'bg-elevated border border-border',
-  ghost: 'bg-transparent border border-border/50',
+  ghost:    'bg-transparent border border-border/50',
+  accent:   'bg-elevated border border-accent/25',
 }
 
 export function Card({
