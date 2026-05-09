@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { Exercise, SectionKey } from '../../types'
 import { Button } from '../ui/Button'
 import { CollapsibleSection } from '../ui/CollapsibleSection'
@@ -22,8 +21,6 @@ interface Props {
 }
 
 export function SectionsList({ localSections, onUpdate, onRemove, onAddBlank, onPickFromArchive, onReorder }: Props) {
-  const [dragInfo, setDragInfo] = useState<{ section: SectionKey; index: number } | null>(null)
-
   return (
     <>
       {SECTIONS.map((section) => (
@@ -35,25 +32,34 @@ export function SectionsList({ localSections, onUpdate, onRemove, onAddBlank, on
         >
           <div className="space-y-2">
             {localSections[section].map((exercise, i) => (
-              <div
-                key={exercise.id}
-                draggable
-                onDragStart={() => setDragInfo({ section, index: i })}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (dragInfo && dragInfo.section === section && dragInfo.index !== i) {
-                    onReorder(section, dragInfo.index, i)
-                  }
-                  setDragInfo(null)
-                }}
-                onDragEnd={() => setDragInfo(null)}
-                className={dragInfo?.section === section && dragInfo?.index === i ? 'opacity-40' : ''}
-              >
-                <ExerciseCard
-                  exercise={exercise}
-                  onUpdate={(ex) => onUpdate(section, i, ex)}
-                  onRemove={() => onRemove(section, i)}
-                />
+              <div key={exercise.id} className="flex items-start gap-1">
+                <div className="flex flex-col gap-0.5 pt-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={i === 0}
+                    onClick={() => onReorder(section, i, i - 1)}
+                    className="p-1 rounded text-muted hover:text-primary disabled:opacity-20 transition-colors"
+                    aria-label="Nach oben"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    disabled={i === localSections[section].length - 1}
+                    onClick={() => onReorder(section, i, i + 1)}
+                    className="p-1 rounded text-muted hover:text-primary disabled:opacity-20 transition-colors"
+                    aria-label="Nach unten"
+                  >
+                    ▼
+                  </button>
+                </div>
+                <div className="flex-1">
+                  <ExerciseCard
+                    exercise={exercise}
+                    onUpdate={(ex) => onUpdate(section, i, ex)}
+                    onRemove={() => onRemove(section, i)}
+                  />
+                </div>
               </div>
             ))}
             <div className="flex gap-2">

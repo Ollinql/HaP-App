@@ -26,6 +26,17 @@ export function TrainingRunModal({ session, onClose }: TrainingRunModalProps) {
 
   const exerciseMap = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
 
+  const globalIndexMap = useMemo(() => {
+    const map = new Map<string, number>()
+    let idx = 0
+    ;(['warmup', 'main', 'closing'] as const).forEach((sk) => {
+      session.sections[sk].forEach((ref) => {
+        map.set(ref.exerciseId, ++idx)
+      })
+    })
+    return map
+  }, [session])
+
   const resolveRef = (ref: SessionExerciseRef): ResolvedExercise | null => {
     const ex = exerciseMap.get(ref.exerciseId)
     if (!ex) return null
@@ -99,7 +110,7 @@ export function TrainingRunModal({ session, onClose }: TrainingRunModalProps) {
           </div>
 
           {/* Exercise list */}
-          <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-3">
+          <div className="flex-1 overflow-y-auto pb-4">
             {(['warmup', 'main', 'closing'] as const).map((sectionKey) => {
               const sectionExercises = session.sections[sectionKey].flatMap((ref) => {
                 const resolved = resolveRef(ref)
@@ -108,36 +119,46 @@ export function TrainingRunModal({ session, onClose }: TrainingRunModalProps) {
               if (sectionExercises.length === 0) return null
               return (
                 <div key={sectionKey}>
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">
-                    {SECTION_LABELS[sectionKey]}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* Abschnitts-Trennlinie */}
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs font-bold text-accent uppercase tracking-widest shrink-0">
+                      {SECTION_LABELS[sectionKey]}
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+
+                  <div className="flex flex-col gap-4 px-4">
                     {sectionExercises.map((ex) => (
                       <div
                         key={ex.id}
-                        className="bg-surface border border-border rounded-lg overflow-hidden"
+                        className="bg-surface border border-border rounded-xl overflow-hidden"
                       >
-                        {/* Großes Vorschaubild */}
-                        <div className="w-full aspect-[4/3] bg-[#1a2e1a]">
+                        {/* Nummer + Titel */}
+                        <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+                          <span className="text-sm font-bold text-accent w-6 shrink-0">
+                            {globalIndexMap.get(ex.id)}.
+                          </span>
+                          <p className="text-base font-semibold text-primary leading-tight">{ex.title || '—'}</p>
+                        </div>
+                        {/* Zeichnung — volle Breite, dunkler Hintergrund für Letterbox */}
+                        <div className="w-full aspect-[4/3] bg-black">
                           {ex.drawingData ? (
                             <img src={ex.drawingData} alt="" className="w-full h-full object-contain" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-muted text-2xl">
+                            <div className="w-full h-full flex items-center justify-center text-muted text-3xl">
                               ✏️
                             </div>
                           )}
                         </div>
-                        {/* Titel + Tags */}
-                        <div className="px-3 py-2">
-                          <p className="text-sm font-semibold text-primary">{ex.title || '—'}</p>
-                          {ex.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {ex.tags.map((tag) => (
-                                <Badge key={tag} label={tag} />
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        {/* Tags */}
+                        {ex.tags.length > 0 && (
+                          <div className="px-4 py-2 flex flex-wrap gap-1">
+                            {ex.tags.map((tag) => (
+                              <Badge key={tag} label={tag} />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
