@@ -45,10 +45,10 @@ export function VolumeChart({ workouts, exerciseId }: Props) {
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%">
-      <text x={PAD.left - 6} y={PAD.top + 4} textAnchor="end" fontSize={8} fill="var(--color-muted)">
+      <text x={PAD.left - 6} y={PAD.top + 4} textAnchor="end" fontSize={8} fill="var(--color-text-primary)">
         {yLabel}
       </text>
-      <text x={PAD.left - 6} y={PAD.top + chartH + 4} textAnchor="end" fontSize={8} fill="var(--color-muted)">
+      <text x={PAD.left - 6} y={PAD.top + chartH + 4} textAnchor="end" fontSize={8} fill="var(--color-text-primary)">
         {minVal}
       </text>
       <line x1={PAD.left} y1={PAD.top} x2={W - PAD.right} y2={PAD.top} stroke="var(--color-border)" strokeWidth={0.8} />
@@ -65,7 +65,7 @@ export function VolumeChart({ workouts, exerciseId }: Props) {
         const date = fromISODate(d.date)
         const label = `${date.getDate()}.${date.getMonth() + 1}.`
         return (
-          <text key={i} x={toX(i)} y={H - 2} textAnchor="middle" fontSize={8} fill="var(--color-muted)">
+          <text key={i} x={toX(i)} y={H - 2} textAnchor="middle" fontSize={8} fill="var(--color-text-primary)">
             {label}
           </text>
         )

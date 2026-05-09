@@ -40,18 +40,12 @@ export const DayCell = memo(function DayCell({ date, onSelect, isSelected }: Day
         !isTrainingDay && !session ? 'opacity-35' : '',
       ].join(' ')}
     >
-      <span
-        className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${
-          isToday || isSelected ? 'text-accent' : 'text-muted'
-        }`}
-      >
+      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-white">
         {dayLabels[dayIndex]}
       </span>
       <span
-        className={`text-sm sm:text-base font-black ${
-          isToday || isSelected ? 'text-accent' : 'text-primary'
-        }`}
-        style={{ letterSpacing: '-0.02em' }}
+        className="text-sm sm:text-base font-black"
+        style={{ letterSpacing: '-0.02em', color: '#ffffff' }}
       >
         {date.getDate()}
       </span>

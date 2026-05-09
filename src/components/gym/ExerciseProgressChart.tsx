@@ -71,7 +71,7 @@ export function ExerciseProgressChart({ workouts, exerciseId, unit }: Props) {
     <svg viewBox={`0 0 ${W} ${H}`} width="100%">
       {/* Y-axis labels */}
       {yLabels.map(({ v, y }) => (
-        <text key={v} x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize={9} fill="var(--color-muted)">
+        <text key={v} x={PAD.left - 6} y={y + 4} textAnchor="end" fontSize={9} fill="var(--color-text-primary)">
           {v}
         </text>
       ))}
@@ -103,14 +103,14 @@ export function ExerciseProgressChart({ workouts, exerciseId, unit }: Props) {
         const date = fromISODate(d.date)
         const label = `${date.getDate()}.${date.getMonth() + 1}.`
         return (
-          <text key={i} x={toX(i)} y={H - 4} textAnchor="middle" fontSize={8} fill="var(--color-muted)">
+          <text key={i} x={toX(i)} y={H - 4} textAnchor="middle" fontSize={8} fill="var(--color-text-primary)">
             {label}
           </text>
         )
       })}
 
       {/* Unit label */}
-      <text x={PAD.left - 6} y={PAD.top - 2} textAnchor="end" fontSize={8} fill="var(--color-muted)">
+      <text x={PAD.left - 6} y={PAD.top - 2} textAnchor="end" fontSize={8} fill="var(--color-text-primary)">
         {unit}
       </text>
     </svg>

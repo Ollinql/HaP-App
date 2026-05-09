@@ -153,7 +153,7 @@ export function GymDashboardPage() {
             {selectedExercise ? (
               <>
                 <div>
-                  <p className="text-xs text-muted font-medium mb-2">
+                  <p className="text-xs text-white font-medium mb-2">
                     Max. Gewicht ({selectedExercise.unit})
                   </p>
                   <ExerciseProgressChart
@@ -163,7 +163,7 @@ export function GymDashboardPage() {
                   />
                 </div>
                 <div>
-                  <p className="text-xs text-muted font-medium mb-2">Volumen pro Session</p>
+                  <p className="text-xs text-white font-medium mb-2">Volumen pro Session</p>
                   <VolumeChart workouts={gymWorkouts} exerciseId={selectedExercise.id} />
                 </div>
               </>
